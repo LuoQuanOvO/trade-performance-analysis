@@ -3,12 +3,14 @@
 import pandas as pd
 import re, glob
 
+from anonymize import alias
+
 def num(s):
     if s is None or (isinstance(s, float) and pd.isna(s)):
         return 0.0
     return float(re.sub(r"[A-Za-z]+", "", str(s)).strip() or 0)
 
-pos_file = glob.glob(r"data/*历史仓位*.csv")[0]
+pos_file = r"data/positions.csv"
 pos = pd.read_csv(pos_file)
 for c in ["平仓量", "平仓价值", "仓位盈亏", "已实现盈亏", "资金费用", "开仓手续费", "平仓手续费"]:
     pos[c] = pos[c].apply(num)
@@ -17,7 +19,7 @@ pos["开仓时间"] = pd.to_datetime(pos["开仓时间"])
 pos["全部平仓时间"] = pd.to_datetime(pos["全部平仓时间"])
 pos["持仓小时"] = (pos["全部平仓时间"] - pos["开仓时间"]).dt.total_seconds() / 3600
 pos["方向类型"] = pos["合约"].apply(lambda x: "做多" if "Long" in str(x) else "做空")
-pos["品种"] = pos["合约"].apply(lambda x: str(x).split("USDT")[0] + "USDT")
+pos["品种"] = pos["合约"].apply(alias)
 
 print("=" * 60)
 print("完整仓位分析(开平配对)")

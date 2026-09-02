@@ -14,7 +14,7 @@ def num(s):
         return 0.0
     return float(re.sub(r"[A-Za-z]+", "", str(s)).strip() or 0)
 
-pos_file = glob.glob(r"data/*历史仓位*.csv")[0]
+pos_file = r"data/positions.csv"
 pos = pd.read_csv(pos_file)
 for c in ["仓位盈亏"]:
     pos[c] = pos[c].apply(num)

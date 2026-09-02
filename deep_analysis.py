@@ -3,7 +3,7 @@
 import pandas as pd
 import numpy as np
 
-DATA_PATH = r"data/导出 U 本位合约成交明细 2026-08-10 11_16_02.098.csv"
+DATA_PATH = r"data/fills.csv"
 
 df = pd.read_csv(DATA_PATH)
 df["时间"] = pd.to_datetime(df["时间"])

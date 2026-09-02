@@ -11,7 +11,7 @@ from pyecharts.commons.utils import JsCode
 import datetime
 import os
 
-OUT = r"C:\Users\LuoOVO\Documents\Default Project\trade_project\black_series\black_series_report.html"
+OUT = r"./black_series/black_series_report.html"
 SPOT_LOOKBACK = 180
 FINANCING_RATE = 0.045
 HOLD_DAYS = [30, 60]

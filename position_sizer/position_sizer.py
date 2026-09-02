@@ -23,7 +23,7 @@ import json
 
 CONFIG_FILE = 'config.json'
 
-CRYPTO_FEE_PCT = 0.036   # 合约单边手续费率(%)
+CONTRACT_FEE_PCT = 0.036   # 合约单边手续费率(%)
 ETF_FEE_PCT = 0.005      # ETF单边手续费率(万分之0.5)
 ETF_FEE_MIN = 0.1        # ETF最低佣金(元)
 FIXED_LEV = 10           # 合约固定杠杆
@@ -42,13 +42,13 @@ def save_config(config):
 
 
 def load_config():
-    """读取配置；兼容旧版 total_capital 字段，自动迁移到 crypto/etf 双资金。"""
+    """读取配置；兼容旧版 total_capital 字段，自动迁移到 合约/ETF 双资金。"""
     try:
         with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
             cfg = json.load(f)
-        if 'crypto_capital' not in cfg:
+        if 'contract_capital' not in cfg:
             old = cfg.get('total_capital', 0)
-            cfg['crypto_capital'] = old
+            cfg['contract_capital'] = old
             cfg['etf_capital'] = cfg.get('etf_capital', old)
             save_config(cfg)
         return cfg
@@ -56,8 +56,8 @@ def load_config():
         return None
 
 
-def calc_crypto(total_capital, risk_pct, stop_pct, leverage, fee_pct):
-    """加密资产(带杠杆)：按风险预算反推仓位价值。
+def calc_contract(total_capital, risk_pct, stop_pct, leverage, fee_pct):
+    """合约(带杠杆)：按风险预算反推仓位价值。
     手续费按双边计，打止损时总亏损 = 价格止损 + 手续费 = 风险预算。"""
     risk_decimal = risk_pct / 100.0
     stop_decimal = stop_pct / 100.0
@@ -115,14 +115,14 @@ def calc_etf(total_capital, risk_pct, stop_pct):
     }
 
 
-def suggest_crypto_options(total_capital, risk_pct, stop_pct,
+def suggest_contract_options(total_capital, risk_pct, stop_pct,
                            contract_step=0, entry_price=0,
                            maintenance_rate=MAINTENANCE_RATE):
     """推荐合约仓位：固定杠杆，若提供合约步进与入场价则按最小步进搜索单位数。
     同时计算强平距离并预警：强平距离 < 止损距离 时，止损将先于强平失效。"""
     risk_decimal = risk_pct / 100.0
     stop_decimal = stop_pct / 100.0
-    fee_total_pct = CRYPTO_FEE_PCT / 100.0 * 2
+    fee_total_pct = CONTRACT_FEE_PCT / 100.0 * 2
     total_risk_budget = total_capital * risk_decimal
 
     # 强平距离估算(隔离保证金,未计手续费): 价格反向走多少百分比会触发强平
@@ -169,7 +169,7 @@ def suggest_crypto_options(total_capital, risk_pct, stop_pct,
             "over_budget": over_budget,
         }
     else:
-        r = calc_crypto(total_capital, risk_pct, stop_pct, FIXED_LEV, CRYPTO_FEE_PCT)
+        r = calc_contract(total_capital, risk_pct, stop_pct, FIXED_LEV, CONTRACT_FEE_PCT)
         result = {
             "leverage": FIXED_LEV,
             "margin": r['margin'],
@@ -186,11 +186,11 @@ def suggest_crypto_options(total_capital, risk_pct, stop_pct,
 def setup():
     print("\n===== 首次设置 =====")
     try:
-        crypto_capital = float(input("加密资产总资金 (U): ").strip())
+        contract_capital = float(input("合约总资金 (单位): ").strip())
         etf_capital = float(input("ETF总资金 (元): ").strip())
         risk = float(input("每笔最大亏损% (默认 0.5): ").strip() or "0.5")
         config = {
-            "crypto_capital": crypto_capital,
+            "contract_capital": contract_capital,
             "etf_capital": etf_capital,
             "risk_percentage": risk,
         }
@@ -226,16 +226,16 @@ def main():
             return
 
     print("\n选择交易类型:")
-    print("  [1] 加密资产（带杠杆）")
+    print("  [1] 合约（带杠杆）")
     print("  [2] ETF（无杠杆，万0.5）")
     mode = input("请输入 (1/2): ").strip()
     while mode not in ("1", "2"):
         mode = input("请选择 1 或 2: ").strip()
-    mode_name = "Crypto" if mode == "1" else "ETF"
+    mode_name = "合约" if mode == "1" else "ETF"
 
     while True:
         c = config
-        capital = c['crypto_capital'] if mode == "1" else c['etf_capital']
+        capital = c['contract_capital'] if mode == "1" else c['etf_capital']
         max_loss = capital * c['risk_percentage'] / 100
         print(f"\n--- [{mode_name}] 资金: {capital:.2f} | "
               f"每笔最多亏: {c['risk_percentage']}% = {max_loss:.2f} ---")
@@ -252,12 +252,12 @@ def main():
                 return
 
         elif cmd == 'm':
-            label = "加密资产" if mode == "1" else "ETF"
+            label = "合约" if mode == "1" else "ETF"
             val = input_float(f"新{label}资金: ")
             if val is None:
                 continue
             if mode == "1":
-                config['crypto_capital'] = val
+                config['contract_capital'] = val
             else:
                 config['etf_capital'] = val
             save_config(config)
@@ -265,7 +265,7 @@ def main():
 
         elif cmd == 's':
             mode = "2" if mode == "1" else "1"
-            mode_name = "Crypto" if mode == "1" else "ETF"
+            mode_name = "合约" if mode == "1" else "ETF"
             continue
 
         elif cmd == 'c':
@@ -293,24 +293,24 @@ def main():
             print("=" * 55)
 
             if mode == "1":
-                r = suggest_crypto_options(
-                    config['crypto_capital'], config['risk_percentage'], stop_pct, contract_step, price
+                r = suggest_contract_options(
+                    config['contract_capital'], config['risk_percentage'], stop_pct, contract_step, price
                 )
                 print(f"  杠杆: {r['leverage']}x")
                 if "contract_units" in r:
-                    print(f"    (开 {r['contract_units']} 单位 = 保证金 {r['margin']:.2f}U)")
+                    print(f"    (开 {r['contract_units']} 单位 = 保证金 {r['margin']:.2f} 单位)")
                     if r.get('over_budget'):
                         print(f"    ⚠️ 最小1单位也超预算，建议降低止损或增加资金")
-                print(f"    合约价值:    {r['position_value']:.2f} U")
-                print(f"    保证金:      {r['margin']:.2f} U  ({r['margin']/config['crypto_capital']*100:.1f}%)")
+                print(f"    合约价值:    {r['position_value']:.2f} 单位")
+                print(f"    保证金:      {r['margin']:.2f} 单位  ({r['margin']/config['contract_capital']*100:.1f}%)")
                 print(f"    强平距离:    {r['liquidation_dist']*100:.1f}%")
                 print(f"    ─── 打止损时的亏损 ───")
-                print(f"    价格止损:    {r['stop_loss_amount']:.2f} U")
-                print(f"    手续费:      {r['total_fee']:.3f} U")
-                print(f"    总亏损:      {r['actual_total_loss']:.2f} U", end="")
+                print(f"    价格止损:    {r['stop_loss_amount']:.2f} 单位")
+                print(f"    手续费:      {r['total_fee']:.3f} 单位")
+                print(f"    总亏损:      {r['actual_total_loss']:.2f} 单位", end="")
                 if r.get('over_budget'):
-                    budget_val = config['crypto_capital'] * config['risk_percentage'] / 100
-                    print(f"  ❌ 超预算 {budget_val:.2f}U ({config['risk_percentage']}%)")
+                    budget_val = config['contract_capital'] * config['risk_percentage'] / 100
+                    print(f"  ❌ 超预算 {budget_val:.2f} 单位 ({config['risk_percentage']}%)")
                 else:
                     print(f"  (预算 {config['risk_percentage']}%)")
                 if r.get('liq_warning'):

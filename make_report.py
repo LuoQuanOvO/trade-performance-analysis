@@ -7,7 +7,9 @@ from pyecharts import options as opts
 from pyecharts.charts import Line, Bar, Grid
 from pyecharts.commons.utils import JsCode
 
-DATA_PATH = r"data/导出 U 本位合约成交明细 2026-08-10 11_16_02.098.csv"
+from anonymize import alias
+
+DATA_PATH = r"data/fills.csv"
 OUT = r".\report.html"
 
 df = pd.read_csv(DATA_PATH)
@@ -60,15 +62,15 @@ bar_month = (
         tooltip_opts=opts.TooltipOpts(trigger="axis"))
 )
 
-# ============ 图3: 品种盈亏(横向条形, 主流资产白名单+其他聚合) ============
-MAINSTREAM = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "XAUUSDT", "XAGUSDT"]  # 与简历口径一致(加密资产+黄金+贵金属), 其余聚合为其他
-by_symbol_all = closes.groupby("合约")["净盈亏"].sum()
-main_symbols = [s for s in MAINSTREAM if s in by_symbol_all.index]
-by_symbol = by_symbol_all[main_symbols].sort_values()
-others_sum = by_symbol_all.drop(main_symbols).sum()
+# ============ 图3: 品种盈亏(横向条形, 展示名脱敏, 其余聚合为其他) ============
+closes["品种"] = closes["合约"].apply(alias)
+by_symbol_all = closes.groupby("品种")["净盈亏"].sum()
+top_n = by_symbol_all.abs().sort_values(ascending=False).head(4).index.tolist()
+by_symbol = by_symbol_all[top_n].sort_values()
+others_sum = by_symbol_all.drop(top_n).sum()
 if others_sum != 0:
     by_symbol = pd.concat([by_symbol, pd.Series({"其他": others_sum})]).sort_values()
-_disp = [str(s).replace("USDT", "") if str(s).endswith("USDT") else str(s) for s in by_symbol.index]
+_disp = [str(s) for s in by_symbol.index]
 bar_sym = (
     Bar(init_opts=opts.InitOpts(width="1200px", height="420px"))
     .add_xaxis(_disp)
@@ -76,7 +78,7 @@ bar_sym = (
                itemstyle_opts=opts.ItemStyleOpts(
                    color=JsCode("params => params.value >= 0 ? '#2ca02c' : '#d62728'")))
     .set_global_opts(
-        title_opts=opts.TitleOpts(title="各品种累计盈亏(主流资产+其他)"),
+        title_opts=opts.TitleOpts(title="各品种累计盈亏(展示名已脱敏)"),
         datazoom_opts=[opts.DataZoomOpts(type_="inside"), opts.DataZoomOpts(type_="slider", height=18), opts.DataZoomOpts(type_="slider", orient="vertical", yaxis_index=0)],
 
         xaxis_opts=opts.AxisOpts(name="品种"),
@@ -123,7 +125,7 @@ def _num(s):
         return 0.0
     return float(re.sub(r"[A-Za-z]+", "", str(s)).strip() or 0)
 
-pos_file = glob.glob(r"data/*历史仓位*.csv")[0]
+pos_file = r"data/positions.csv"
 pos = pd.read_csv(pos_file)
 pos["仓位盈亏"] = pos["仓位盈亏"].apply(_num)
 pos["开仓时间"] = pd.to_datetime(pos["开仓时间"])
@@ -215,7 +217,7 @@ h1 {{ text-align: center; color: #222; }}
 </style></head>
 <body><div class="container">
 <h1>交易绩效分析报告</h1>
-<div class="sub">数据范围：{df["时间"].min().date()} - {df["时间"].max().date()}（数据截至 {df["时间"].max().date()}）&nbsp;|&nbsp; 平仓记录：{len(closes)} 笔 &nbsp;|&nbsp; 数据来源：境外合规平台导出</div>
+<div class="sub">数据范围：{df["时间"].min().date()} - {df["时间"].max().date()}（数据截至 {df["时间"].max().date()}）&nbsp;|&nbsp; 平仓记录：{len(closes)} 笔 &nbsp;|&nbsp; 数据来源：个人实盘记录导出</div>
 <div class="cards">
   <div class="card"><div class="num {'red' if total_pnl<0 else 'green'}">{total_pnl:+.2f}</div><div class="lbl">净盈亏 (单位)</div></div>
   <div class="card"><div class="num">{win_rate:.1f}%</div><div class="lbl">胜率</div></div>

@@ -2,7 +2,7 @@
 """
 Trade Performance Analysis
 对个人衍生品实盘交易记录进行绩效归因分析
-数据: 境外合规平台成交明细导出CSV
+数据: 交易所成交明细导出CSV(本地, 不入库)
 """
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -11,7 +11,9 @@ matplotlib.rcParams["font.sans-serif"] = ["Microsoft YaHei", "SimHei"]
 matplotlib.rcParams["axes.unicode_minus"] = False
 import os
 
-DATA_PATH = r"data/导出 U 本位合约成交明细 2026-08-10 11_16_02.098.csv"
+from anonymize import alias
+
+DATA_PATH = r"data/fills.csv"
 OUT_DIR = r"."
 
 os.makedirs(OUT_DIR, exist_ok=True)
@@ -70,19 +72,19 @@ fig.savefig(os.path.join(OUT_DIR, "2_pnl_distribution.png"), dpi=150)
 print("图表2已保存: 2_pnl_distribution.png")
 
 # ---------- 5. 图表3: 按品种盈亏归因(主流资产白名单+其他聚合) ----------
-closes["品种"] = closes["合约"]
-# 白名单: 主流资产(简历口径一致), 其余全部聚合为"其他"
-MAINSTREAM = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "XAUUSDT", "XAGUSDT"]  # 与简历口径一致(加密资产+黄金+贵金属), 其余聚合为其他
+# 展示名统一走 anonymize.alias(非大宗类->SYM_*, 贵金属/能源类保留); 其余品种聚合为"其他"
+closes["品种"] = closes["合约"].apply(alias)
 by_symbol_all = closes.groupby("品种")["净盈亏"].sum()
-main_symbols = [s for s in MAINSTREAM if s in by_symbol_all.index]
-by_symbol = by_symbol_all[main_symbols].sort_values()
-others_sum = by_symbol_all.drop(main_symbols).sum()
+main_symbols = [s for s in closes["品种"].unique() if s not in ("其他",)]
+# 主流 = 出现笔数最多的前4个品种, 其余聚合为其他; 避免真实名称出现在图表
+top_n = by_symbol_all.abs().sort_values(ascending=False).head(4).index.tolist()
+by_symbol = by_symbol_all[top_n].sort_values()
+others_sum = by_symbol_all.drop(top_n).sum()
 if others_sum != 0:
     by_symbol = pd.concat([by_symbol, pd.Series({"其他": others_sum})]).sort_values()
 fig, ax = plt.subplots(figsize=(10, 5))
 colors = ["#d62728" if v < 0 else "#2ca02c" for v in by_symbol.values]
-_disp = [str(x).replace("USDT", "") if str(x).endswith("USDT") else str(x) for x in by_symbol.index]
-ax.barh(_disp, by_symbol.values, color=colors)
+ax.barh([str(x) for x in by_symbol.index], by_symbol.values, color=colors)
 ax.set_title("各品种累计盈亏(单位, 主流资产+其他)")
 ax.set_xlabel("累计盈亏 (单位)")
 for i, v in enumerate(by_symbol.values):
@@ -116,7 +118,6 @@ summary = pd.DataFrame({
 summary.to_csv(os.path.join(OUT_DIR, "summary.csv"), index=False, encoding="utf-8-sig")
 monthly.to_frame("累计净盈亏").to_csv(os.path.join(OUT_DIR, "monthly_cum_pnl.csv"), encoding="utf-8-sig")
 _disp_pnl = by_symbol.copy()
-_disp_pnl.index = [str(x).replace("USDT", "") if str(x).endswith("USDT") else str(x) for x in _disp_pnl.index]
 _disp_pnl.to_frame("净盈亏").to_csv(os.path.join(OUT_DIR, "symbol_pnl.csv"), encoding="utf-8-sig")
 
 print("\n全部完成, 输出目录:", OUT_DIR)

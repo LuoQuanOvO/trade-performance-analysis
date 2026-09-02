@@ -18,7 +18,7 @@ matplotlib.rcParams["axes.unicode_minus"] = False
 import os
 import datetime
 
-OUT = r"C:\Users\LuoOVO\Documents\Default Project\trade_project\black_series"
+OUT = r"./black_series"
 os.makedirs(OUT, exist_ok=True)
 
 # ============ 参数 ============

@@ -8,7 +8,7 @@ matplotlib.rcParams["axes.unicode_minus"] = False
 import os
 
 DATA = r"data/Al_Brooks_FXReplay_v3_20260710.xlsx"
-OUT = r"C:\Users\LuoOVO\Documents\Default Project\trade_project"
+OUT = r"./fxreplay_out"
 os.makedirs(OUT, exist_ok=True)
 
 df = pd.read_excel(DATA, sheet_name="Trade Log")
