@@ -65,7 +65,8 @@ last_basis = basis["dom_basis"].iloc[-1]
 last_rate = basis["dom_basis_rate"].iloc[-1]
 pct = (basis["dom_basis_rate"] < last_rate).mean() * 100
 last_spot = basis["spot_price"].iloc[-1]
-discount_days = (basis["dom_basis"] < 0).mean() * 100
+# 口径说明: 基差=期货-现货, 基差<0 即期货贴水(现货升水)
+neg_basis_days = (basis["dom_basis"] < 0).mean() * 100
 mean_basis = basis["dom_basis"].mean()
 
 # 正套测算
@@ -73,7 +74,7 @@ arbs = {}
 for days in HOLD_DAYS:
     financing = last_spot * FINANCING_RATE * days / 365
     row = {}
-    for name, target in [("收敛至平水", 0.0), ("升水20元", 20.0), ("升水50元", 50.0)]:
+    for name, target in [("收敛至样本均值", mean_basis), ("收敛至平水", 0.0), ("升水20元", 20.0), ("升水50元", 50.0)]:
         # 正套盈亏 = 初始基差 - 目标基差(基差=期货-现货)
         net = (last_basis - target) - financing
         row[name] = net
@@ -100,7 +101,7 @@ sig_rows = []
 sig_rows.append(("S1 基差修复观察", "✅ 触发" if (d_inv < 0 and pct < 30) else "⏸ 未触发",
                  f"去库({d_inv:+.0f}) + 基差率低分位({pct:.0f}%) → 现货走强预期,期货贴水有望修复,关注反套/锁价机会"))
 sig_rows.append(("S2 收敛止盈", "✅ 触发" if pct > 70 else "⏸ 未触发",
-                 f"基差率分位({pct:.0f}%)过高 → 基差收敛接近完成,正套止盈/离场区"))
+                 f"基差率分位({pct:.0f}%)过高 → 基差修复接近完成,反套止盈/离场;正套观察(当前绝对基差小,收敛空间有限)"))
 sig_rows.append(("S3 基差修复受阻", "✅ 触发" if (d_inv > 0 and pct < 30) else "⏸ 未触发",
                  "累库 + 期货深贴水 → 基本面偏弱,基差修复受阻风险"))
 sig_rows.append(("S4 减产预期", "✅ 触发" if last_profit < 0 else "⏸ 未触发",
@@ -213,9 +214,19 @@ if inv is not None:
                 tooltip_opts=opts.TooltipOpts(trigger="item"))
         )
         charts.append(scat)
+        if corr >= 0.5:
+            rel_desc = ("中等偏强正相关——库存高时价格通常也偏高,反映贸易商\"涨价补库、跌价去库\"的库存行为,"
+                        "库存可作为价格方向的辅助参考")
+        elif corr >= 0.2:
+            rel_desc = "弱正相关——库存与价格存在一定同向关系,仅作辅助参考"
+        elif corr <= -0.2:
+            rel_desc = "负相关——库存与价格反向,累库伴随价格走弱,关注累库的供应压力"
+        else:
+            rel_desc = ("近乎无相关——价格与库存表观脱钩,单看库存难以推断价格方向,"
+                        "需结合基差/盘面利润等维度交叉验证")
         charts.append(("<div style='padding:6px 4px 14px;font-size:12px;color:#888;'>"
-                       f"读图说明：每个点=某天的(库存,价格)配对；r={corr:.2f}为中等正相关——库存高时价格通常也偏高，"
-                       "反映贸易商\"涨价补库、跌价去库\"的库存行为，库存可作为价格方向的辅助参考（相关≠因果）。</div>"))
+                       f"读图说明：每个点=某天的(库存,价格)配对；r={corr:.2f}为{rel_desc}"
+                       "（相关≠因果,且为水平值相关,仅作参考）。</div>"))
 
 # ============ HTML ============
 arb_html = ""
@@ -263,7 +274,7 @@ charts_html = "".join(c if isinstance(c, str) else f'<div class="chart">{c.rende
 html_foot = f"""<div class="conclusion">
 <h2>正套损益测算(买入现货+卖出期货)</h2>
 {arb_html}
-<p><b>结论</b>: 当前基差 {last_basis:+.0f} 元/吨,基差率 {last_rate*100:+.2f}% 处于近{len(basis)}日的 {pct:.0f}% 分位。按各持有期情景测算,盈亏平衡基差为 {arbs[30][1]['盈亏平衡基差']:+.1f} 元/吨(30天)——正套是否值得参与,取决于当前基差距盈亏平衡点的距离与资金成本承受能力。</p>
+<p><b>结论</b>: 当前基差 {last_basis:+.0f} 元/吨,基差率 {last_rate*100:+.2f}% 处于近{len(basis)}日的 {pct:.0f}% 分位。正套盈亏=初始基差-目标基差-资金成本,盈亏平衡基差为 {arbs[30][1]['盈亏平衡基差']:+.1f} 元/吨(30天)。按"收敛至样本均值"情景(近{len(basis)}日均值 {mean_basis:+.0f} 元/吨)测算净收益空间更大,但依赖基差向均值回归的假设;按保守的"收敛至平水"情景,30天净收益约 {arbs[30][1]['收敛至平水']:+.1f} 元/吨,仅薄利。注意:测算仅计资金成本,未计仓储/增值税/交割费用,实际净收益更低;基差取自主力连续合约,换月存在跳变,结果为近似口径。</p>
 
 <h2>跟踪信号触发状态</h2>
 <table>
@@ -272,7 +283,7 @@ html_foot = f"""<div class="conclusion">
 </table>
 
 <h2>研究结论</h2>
-<p><b>1. 基差结构</b>: 基差率 {last_rate*100:+.2f}% 处于近{len(basis)}日 {pct:.0f}% 分位(近{len(basis)}日 {discount_days:.0f}% 时间为现货贴水),当前{('期货升水结构延续' if last_basis < 0 else '已转为现货升水(基差为正)')},基差相对年内低点已有{('明显' if abs(last_basis) < 30 else '大幅')}修复。</p>
+<p><b>1. 基差结构</b>: 基差率 {last_rate*100:+.2f}% 处于近{len(basis)}日 {pct:.0f}% 分位(近{len(basis)}日 {neg_basis_days:.0f}% 时间为期货贴水/现货升水),当前{('期货贴水、现货升水' if last_basis < 0 else '期货升水、现货贴水')},基差相对年内低点已有{('明显' if abs(last_basis) < 30 else '大幅')}修复。</p>
 <p><b>2. 库存周期</b>: 最新库存 {last_inv:,.0f},近30日{'累库' if d_inv > 0 else '去库'} {d_inv:+.0f},{('累库压制现货' if d_inv > 0 else '去库支撑现货')},该信号需与基差方向交叉验证。</p>
 <p><b>3. 盘面利润</b>: {last_profit:+.0f} 元/吨,{('处于偏高水平,钢厂增产动力强(S5触发)' if last_profit > 500 else '处于盈亏线附近' if last_profit < 100 else '处于中性区间')},供应端压力需跟踪。</p>
 <p><b>4. 操作含义</b>: 以"基差分位 + 库存拐点 + 盘面利润"三维信号表为日常监控工具,任一维度变化触发复核——结论是动态的,框架是常驻的。</p>
