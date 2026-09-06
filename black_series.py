@@ -101,10 +101,11 @@ for days in HOLD_DAYS:
     print(f"\n-- 持有 {days} 天 | 资金成本 {financing:.1f} 元/吨(年化{FINANCING_RATE*100:.1f}%) --")
     print(f"  {'目标基差':<12}{'基差收益':>10}{'资金成本':>10}{'净收益':>10}")
     for name, target in scenarios.items():
-        profit = target - latest_basis
+        # 正套盈亏 = 初始基差 - 目标基差(基差=期货-现货); 基差收窄/升水收敛时正套盈利
+        profit = latest_basis - target
         net = profit - financing
         print(f"  {name:<12}{profit:+8.1f}{financing:>10.1f}{net:+10.1f}")
-    breakeven = latest_basis + financing
+    breakeven = latest_basis - financing
     print(f"  → 盈亏平衡目标基差: {breakeven:+.1f} 元/吨 (基差需收敛至该水平以上才覆盖资金成本)")
 
 # ============ 4. 盘面利润 ============
@@ -132,12 +133,12 @@ def signal(no, name, cond, desc):
     print(f"  {no}. [{name}] {'✅ 触发' if cond else '⏸ 未触发'} — {desc}")
 
 d_inv_str = f"{d_inv:+.0f}" if d_inv is not None else "N/A"
-signal("S1", "正套观察", d_inv is not None and d_inv < 0 and pct < 30,
-       f"去库({d_inv_str}) + 基差率低分位({pct:.0f}%) → 现货走强预期,正套观察窗口")
+signal("S1", "基差修复观察", d_inv is not None and d_inv < 0 and pct < 30,
+       f"去库({d_inv_str}) + 基差率低分位({pct:.0f}%) → 现货走强预期,期货贴水有望修复,关注反套/锁价机会")
 signal("S2", "收敛止盈", pct > 70,
        f"基差率分位({pct:.0f}%)过高 → 收敛接近完成,正套止盈/离场区")
-signal("S3", "正套风险", d_inv is not None and d_inv > 0 and pct < 30,
-       "累库 + 深贴水 → 现货承压,正套风险警示")
+signal("S3", "基差修复受阻", d_inv is not None and d_inv > 0 and pct < 30,
+       "累库 + 期货深贴水 → 基本面偏弱,基差修复受阻风险")
 signal("S4", "减产预期", last_profit < 0,
        f"盘面利润 {last_profit:+.0f} 元/吨 → 钢厂亏损,减产预期升温,关注供应收缩对现货支撑")
 signal("S5", "增产压力", last_profit > 500,
@@ -151,9 +152,9 @@ fig, ax1 = plt.subplots(figsize=(12, 5))
 ax1.plot(fut["日期"], fut["收盘价"], color="#1f77b4", linewidth=1.2, label="螺纹钢期货主力收盘价")
 ax1.set_ylabel("价格 (元/吨)", color="#1f77b4")
 ax2 = ax1.twinx()
-ax2.bar(b["date"], b["dom_basis"], color=["#2ca02c" if v > 0 else "#d62728" for v in b["dom_basis"]], alpha=0.6, width=1.5, label="基差(现货-期货)")
+ax2.bar(b["date"], b["dom_basis"], color=["#2ca02c" if v > 0 else "#d62728" for v in b["dom_basis"]], alpha=0.6, width=1.5, label="基差(期货-现货)")
 ax2.axhline(0, color="gray", linewidth=0.8)
-ax2.set_ylabel("基差 (元/吨)", color="#555")
+ax2.set_ylabel("基差 (期货-现货, 元/吨)", color="#555")
 ax1.set_title("螺纹钢: 期货价格与基差走势")
 fig.autofmt_xdate()
 lines1, labels1 = ax1.get_legend_handles_labels()
@@ -169,7 +170,7 @@ ax.plot(b["date"], b["dom_basis_rate"] * 100, color="#9467bd", marker="o", marke
 ax.axhline(0, color="gray", linewidth=0.8)
 ax.axhline(latest_rate * 100, color="red", linewidth=1.2, linestyle="--", label=f"当前基差率 {latest_rate*100:+.2f}% (近{len(b)}日{pct:.0f}%分位)")
 ax.set_ylabel("基差率 (%)")
-ax.set_title("螺纹钢基差率走势(现货-期货)/期货")
+ax.set_title("螺纹钢基差率走势(期货-现货)/期货")
 ax.legend(fontsize=9)
 fig.autofmt_xdate()
 fig.tight_layout()

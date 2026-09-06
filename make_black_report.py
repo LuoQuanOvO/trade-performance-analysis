@@ -74,9 +74,10 @@ for days in HOLD_DAYS:
     financing = last_spot * FINANCING_RATE * days / 365
     row = {}
     for name, target in [("收敛至平水", 0.0), ("升水20元", 20.0), ("升水50元", 50.0)]:
-        net = (target - last_basis) - financing
+        # 正套盈亏 = 初始基差 - 目标基差(基差=期货-现货)
+        net = (last_basis - target) - financing
         row[name] = net
-    row["盈亏平衡基差"] = last_basis + financing
+    row["盈亏平衡基差"] = last_basis - financing
     arbs[days] = (financing, row)
 
 # 盘面利润
@@ -96,12 +97,12 @@ else:
 
 # 信号
 sig_rows = []
-sig_rows.append(("S1 正套观察", "✅ 触发" if (d_inv < 0 and pct < 30) else "⏸ 未触发",
-                 f"去库({d_inv:+.0f}) + 基差率低分位({pct:.0f}%) → 现货走强预期,正套观察窗口"))
+sig_rows.append(("S1 基差修复观察", "✅ 触发" if (d_inv < 0 and pct < 30) else "⏸ 未触发",
+                 f"去库({d_inv:+.0f}) + 基差率低分位({pct:.0f}%) → 现货走强预期,期货贴水有望修复,关注反套/锁价机会"))
 sig_rows.append(("S2 收敛止盈", "✅ 触发" if pct > 70 else "⏸ 未触发",
                  f"基差率分位({pct:.0f}%)过高 → 基差收敛接近完成,正套止盈/离场区"))
-sig_rows.append(("S3 正套风险", "✅ 触发" if (d_inv > 0 and pct < 30) else "⏸ 未触发",
-                 "累库 + 深贴水 → 现货承压,正套风险警示"))
+sig_rows.append(("S3 基差修复受阻", "✅ 触发" if (d_inv > 0 and pct < 30) else "⏸ 未触发",
+                 "累库 + 期货深贴水 → 基本面偏弱,基差修复受阻风险"))
 sig_rows.append(("S4 减产预期", "✅ 触发" if last_profit < 0 else "⏸ 未触发",
                  f"盘面利润 {last_profit:+.0f} 元/吨 → 钢厂亏损,减产预期升温,关注供应收缩"))
 sig_rows.append(("S5 增产压力", "✅ 触发" if last_profit > 500 else "⏸ 未触发",
@@ -124,11 +125,11 @@ line_price = (
 line_basis = (
     Bar(init_opts=opts.InitOpts(width="1200px", height="360px"))
     .add_xaxis([str(d.date()) for d in basis["date"]])
-    .add_yaxis("基差(现货-期货,元/吨)", [round(float(v), 1) for v in basis["dom_basis"]],
+    .add_yaxis("基差(期货-现货,元/吨)", [round(float(v), 1) for v in basis["dom_basis"]],
                itemstyle_opts=opts.ItemStyleOpts(
                    color=JsCode("params => params.value >= 0 ? '#2ca02c' : '#d62728'")))
     .set_global_opts(
-        title_opts=opts.TitleOpts(title="螺纹钢基差(现货-期货主力)"),
+        title_opts=opts.TitleOpts(title="螺纹钢基差(期货-现货主力)"),
         datazoom_opts=[opts.DataZoomOpts(range_start=0, range_end=100), opts.DataZoomOpts(type_="inside"), opts.DataZoomOpts(type_="slider", orient="vertical", yaxis_index=0)],
         xaxis_opts=opts.AxisOpts(axislabel_opts=opts.LabelOpts(rotate=45, interval=10, font_size=9)),
         yaxis_opts=opts.AxisOpts(name="元/吨", splitline_opts=opts.SplitLineOpts(is_show=True)),
