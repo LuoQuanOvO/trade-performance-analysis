@@ -83,32 +83,35 @@ except Exception as e:
 # ============ 2. 基差与分位 ============
 print("\n=== 2. 基差率历史分位 ===")
 b = basis.copy()
-latest_basis = b["dom_basis"].iloc[-1]
-latest_rate = b["dom_basis_rate"].iloc[-1]
+# 基差口径: 现货 - 期货(行业/教材口径); 基差>0=现货升水(期货贴水), <0=现货贴水(期货升水)
+b["basis"] = b["spot_price"] - b["dominant_contract_price"]
+b["basis_rate"] = b["basis"] / b["spot_price"]
+latest_basis = b["basis"].iloc[-1]
+latest_rate = b["basis_rate"].iloc[-1]
 latest_spot = b["spot_price"].iloc[-1]
-pct = (b["dom_basis_rate"] < latest_rate).mean() * 100
+pct = (b["basis_rate"] < latest_rate).mean() * 100
 print(f"最新基差 {latest_basis:+.0f} 元/吨 | 基差率 {latest_rate*100:+.2f}%")
-print(f"基差率处于近{len(b)}个交易日样本的 {pct:.0f}% 分位(越低=贴水越深)")
-print(f"样本内基差率: min {b['dom_basis_rate'].min()*100:+.2f}% | 均值 {b['dom_basis_rate'].mean()*100:+.2f}% | max {b['dom_basis_rate'].max()*100:+.2f}%")
+print(f"基差率处于近{len(b)}个交易日样本的 {pct:.0f}% 分位(越低=期货升水越深)")
+print(f"样本内基差率: min {b['basis_rate'].min()*100:+.2f}% | 均值 {b['basis_rate'].mean()*100:+.2f}% | max {b['basis_rate'].max()*100:+.2f}%")
 
 # ============ 3. 期现正套损益测算 ============
 # 口径说明: 基差取自主力连续合约(换月存在跳变),测算为近似;
 # 成本仅计资金成本(年化4.5%),未计仓储/增值税/交割费用,实际净收益更低。
 print("\n=== 3. 期现正套损益测算(买入现货+卖出期货) ===")
 print(f"现货 {latest_spot:.0f} | 期货 {b['dominant_contract_price'].iloc[-1]:.0f} | 基差 {latest_basis:+.0f}")
-mean_basis = b["dom_basis"].mean()
-scenarios = {"收敛至样本均值": mean_basis, "收敛至平水(0)": 0.0, "升水20元": 20.0, "升水50元": 50.0}
+mean_basis = b["basis"].mean()
+scenarios = {"收敛至样本均值": mean_basis, "收敛至平水(0)": 0.0, "期货升水20元": -20.0, "期货升水50元": -50.0}
 for days in HOLD_DAYS:
     financing = latest_spot * FINANCING_RATE * days / 365
     print(f"\n-- 持有 {days} 天 | 资金成本 {financing:.1f} 元/吨(年化{FINANCING_RATE*100:.1f}%) --")
     print(f"  {'目标基差':<12}{'基差收益':>10}{'资金成本':>10}{'净收益':>10}")
     for name, target in scenarios.items():
-        # 正套盈亏 = 初始基差 - 目标基差(基差=期货-现货); 基差收窄/升水收敛时正套盈利
-        profit = latest_basis - target
+        # 正套盈亏 = 目标基差 - 初始基差(基差=现货-期货); 基差向上收敛(向平水/现货升水)时正套盈利
+        profit = target - latest_basis
         net = profit - financing
         print(f"  {name:<12}{profit:+8.1f}{financing:>10.1f}{net:+10.1f}")
-    breakeven = latest_basis - financing
-    print(f"  → 盈亏平衡目标基差: {breakeven:+.1f} 元/吨 (净收益>0 需基差收敛至该水平以下)")
+    breakeven = latest_basis + financing
+    print(f"  → 盈亏平衡目标基差: {breakeven:+.1f} 元/吨 (净收益>0 需基差收敛至该水平以上)")
 
 # ============ 4. 盘面利润 ============
 print("\n=== 4. 盘面利润估算(螺纹-1.6×铁矿-0.45×焦炭-加工费) ===")
@@ -135,12 +138,12 @@ def signal(no, name, cond, desc):
     print(f"  {no}. [{name}] {'✅ 触发' if cond else '⏸ 未触发'} — {desc}")
 
 d_inv_str = f"{d_inv:+.0f}" if d_inv is not None else "N/A"
-signal("S1", "基差修复观察", d_inv is not None and d_inv < 0 and pct < 30,
-       f"去库({d_inv_str}) + 基差率低分位({pct:.0f}%) → 现货走强预期,期货贴水有望修复,关注反套/锁价机会")
-signal("S2", "收敛止盈", pct > 70,
-       f"基差率分位({pct:.0f}%)过高 → 基差修复接近完成,反套止盈/离场;正套观察(当前绝对基差小,收敛空间有限)")
-signal("S3", "基差修复受阻", d_inv is not None and d_inv > 0 and pct < 30,
-       "累库 + 期货深贴水 → 基本面偏弱,基差修复受阻风险")
+signal("S1", "基差修复观察", d_inv is not None and d_inv < 0 and pct > 70,
+       f"去库({d_inv_str}) + 基差率高分位({pct:.0f}%) → 期货深贴水,去库支撑现货,贴水有望修复(基差回落),关注反套/锁价机会")
+signal("S2", "收敛止盈", pct < 30,
+       f"基差率分位({pct:.0f}%)过低 → 期货升水处于历史高位,基差收敛接近完成,反套止盈/离场;正套观察(当前绝对基差小,收敛空间有限)")
+signal("S3", "基差修复受阻", d_inv is not None and d_inv > 0 and pct > 70,
+       "累库 + 期货深贴水(现货升水高位) → 基本面偏弱,基差修复受阻风险")
 signal("S4", "减产预期", last_profit < 0,
        f"盘面利润 {last_profit:+.0f} 元/吨 → 钢厂亏损,减产预期升温,关注供应收缩对现货支撑")
 signal("S5", "增产压力", last_profit > 500,
@@ -154,9 +157,9 @@ fig, ax1 = plt.subplots(figsize=(12, 5))
 ax1.plot(fut["日期"], fut["收盘价"], color="#1f77b4", linewidth=1.2, label="螺纹钢期货主力收盘价")
 ax1.set_ylabel("价格 (元/吨)", color="#1f77b4")
 ax2 = ax1.twinx()
-ax2.bar(b["date"], b["dom_basis"], color=["#2ca02c" if v > 0 else "#d62728" for v in b["dom_basis"]], alpha=0.6, width=1.5, label="基差(期货-现货)")
+ax2.bar(b["date"], b["basis"], color=["#2ca02c" if v > 0 else "#d62728" for v in b["basis"]], alpha=0.6, width=1.5, label="基差(现货-期货)")
 ax2.axhline(0, color="gray", linewidth=0.8)
-ax2.set_ylabel("基差 (期货-现货, 元/吨)", color="#555")
+ax2.set_ylabel("基差 (现货-期货, 元/吨)", color="#555")
 ax1.set_title("螺纹钢: 期货价格与基差走势")
 fig.autofmt_xdate()
 lines1, labels1 = ax1.get_legend_handles_labels()
@@ -168,7 +171,7 @@ print("图1: rb_price_basis.png")
 
 # 图2: 基差率 + 当前分位标注
 fig, ax = plt.subplots(figsize=(12, 4.5))
-ax.plot(b["date"], b["dom_basis_rate"] * 100, color="#9467bd", marker="o", markersize=3, linewidth=1)
+ax.plot(b["date"], b["basis_rate"] * 100, color="#9467bd", marker="o", markersize=3, linewidth=1)
 ax.axhline(0, color="gray", linewidth=0.8)
 ax.axhline(latest_rate * 100, color="red", linewidth=1.2, linestyle="--", label=f"当前基差率 {latest_rate*100:+.2f}% (近{len(b)}日{pct:.0f}%分位)")
 ax.set_ylabel("基差率 (%)")
@@ -181,7 +184,7 @@ print("图2: rb_basis_rate.png")
 
 # 图3: 基差率分布直方图(分位可视化)
 fig, ax = plt.subplots(figsize=(9, 4.5))
-ax.hist(b["dom_basis_rate"] * 100, bins=30, color="#9467bd", alpha=0.75)
+ax.hist(b["basis_rate"] * 100, bins=30, color="#9467bd", alpha=0.75)
 ax.axvline(latest_rate * 100, color="red", linewidth=2, label=f"当前 {latest_rate*100:+.2f}% (第{pct:.0f}百分位)")
 ax.set_xlabel("基差率 (%)")
 ax.set_ylabel("天数")

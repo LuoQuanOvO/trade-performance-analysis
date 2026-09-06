@@ -61,24 +61,26 @@ except Exception:
 # ============ 指标计算 ============
 last_price = fut["收盘价"].iloc[-1]
 last_date = fut["日期"].iloc[-1].date()
-last_basis = basis["dom_basis"].iloc[-1]
-last_rate = basis["dom_basis_rate"].iloc[-1]
-pct = (basis["dom_basis_rate"] < last_rate).mean() * 100
+# 基差口径: 现货-期货(行业/教材口径), 基差<0 即现货贴水(期货升水)
+basis["basis"] = basis["spot_price"] - basis["dominant_contract_price"]
+basis["basis_rate"] = basis["basis"] / basis["spot_price"]
+last_basis = basis["basis"].iloc[-1]
+last_rate = basis["basis_rate"].iloc[-1]
+pct = (basis["basis_rate"] < last_rate).mean() * 100
 last_spot = basis["spot_price"].iloc[-1]
-# 口径说明: 基差=期货-现货, 基差<0 即期货贴水(现货升水)
-neg_basis_days = (basis["dom_basis"] < 0).mean() * 100
-mean_basis = basis["dom_basis"].mean()
+neg_basis_days = (basis["basis"] < 0).mean() * 100
+mean_basis = basis["basis"].mean()
 
 # 正套测算
 arbs = {}
 for days in HOLD_DAYS:
     financing = last_spot * FINANCING_RATE * days / 365
     row = {}
-    for name, target in [("收敛至样本均值", mean_basis), ("收敛至平水", 0.0), ("升水20元", 20.0), ("升水50元", 50.0)]:
-        # 正套盈亏 = 初始基差 - 目标基差(基差=期货-现货)
-        net = (last_basis - target) - financing
+    for name, target in [("收敛至样本均值", mean_basis), ("收敛至平水", 0.0), ("期货升水20元", -20.0), ("期货升水50元", -50.0)]:
+        # 正套盈亏 = 目标基差 - 初始基差(基差=现货-期货); 基差向上收敛时正套盈利
+        net = (target - last_basis) - financing
         row[name] = net
-    row["盈亏平衡基差"] = last_basis - financing
+    row["盈亏平衡基差"] = last_basis + financing
     arbs[days] = (financing, row)
 
 # 盘面利润
@@ -98,12 +100,12 @@ else:
 
 # 信号
 sig_rows = []
-sig_rows.append(("S1 基差修复观察", "✅ 触发" if (d_inv < 0 and pct < 30) else "⏸ 未触发",
-                 f"去库({d_inv:+.0f}) + 基差率低分位({pct:.0f}%) → 现货走强预期,期货贴水有望修复,关注反套/锁价机会"))
-sig_rows.append(("S2 收敛止盈", "✅ 触发" if pct > 70 else "⏸ 未触发",
-                 f"基差率分位({pct:.0f}%)过高 → 基差修复接近完成,反套止盈/离场;正套观察(当前绝对基差小,收敛空间有限)"))
-sig_rows.append(("S3 基差修复受阻", "✅ 触发" if (d_inv > 0 and pct < 30) else "⏸ 未触发",
-                 "累库 + 期货深贴水 → 基本面偏弱,基差修复受阻风险"))
+sig_rows.append(("S1 基差修复观察", "✅ 触发" if (d_inv < 0 and pct > 70) else "⏸ 未触发",
+                 f"去库({d_inv:+.0f}) + 基差率高分位({pct:.0f}%) → 期货深贴水,去库支撑现货,贴水有望修复(基差回落),关注反套/锁价机会"))
+sig_rows.append(("S2 收敛止盈", "✅ 触发" if pct < 30 else "⏸ 未触发",
+                 f"基差率分位({pct:.0f}%)过低 → 期货升水处于历史高位,基差收敛接近完成,反套止盈/离场;正套观察(当前绝对基差小,收敛空间有限)"))
+sig_rows.append(("S3 基差修复受阻", "✅ 触发" if (d_inv > 0 and pct > 70) else "⏸ 未触发",
+                 "累库 + 期货深贴水(现货升水高位) → 基本面偏弱,基差修复受阻风险"))
 sig_rows.append(("S4 减产预期", "✅ 触发" if last_profit < 0 else "⏸ 未触发",
                  f"盘面利润 {last_profit:+.0f} 元/吨 → 钢厂亏损,减产预期升温,关注供应收缩"))
 sig_rows.append(("S5 增产压力", "✅ 触发" if last_profit > 500 else "⏸ 未触发",
@@ -126,11 +128,11 @@ line_price = (
 line_basis = (
     Bar(init_opts=opts.InitOpts(width="1200px", height="360px"))
     .add_xaxis([str(d.date()) for d in basis["date"]])
-    .add_yaxis("基差(期货-现货,元/吨)", [round(float(v), 1) for v in basis["dom_basis"]],
+    .add_yaxis("基差(现货-期货,元/吨)", [round(float(v), 1) for v in basis["basis"]],
                itemstyle_opts=opts.ItemStyleOpts(
                    color=JsCode("params => params.value >= 0 ? '#2ca02c' : '#d62728'")))
     .set_global_opts(
-        title_opts=opts.TitleOpts(title="螺纹钢基差(期货-现货主力)"),
+        title_opts=opts.TitleOpts(title="螺纹钢基差(现货-期货主力)"),
         datazoom_opts=[opts.DataZoomOpts(range_start=0, range_end=100), opts.DataZoomOpts(type_="inside"), opts.DataZoomOpts(type_="slider", orient="vertical", yaxis_index=0)],
         xaxis_opts=opts.AxisOpts(axislabel_opts=opts.LabelOpts(rotate=45, interval=10, font_size=9)),
         yaxis_opts=opts.AxisOpts(name="元/吨", splitline_opts=opts.SplitLineOpts(is_show=True)),
@@ -140,7 +142,7 @@ line_basis = (
 line_rate = (
     Line(init_opts=opts.InitOpts(width="1200px", height="340px"))
     .add_xaxis([str(d.date()) for d in basis["date"]])
-    .add_yaxis("基差率(%)", [round(float(v) * 100, 2) for v in basis["dom_basis_rate"]],
+    .add_yaxis("基差率(%)", [round(float(v) * 100, 2) for v in basis["basis_rate"]],
                is_smooth=True, color="#9467bd", symbol="circle", symbol_size=5,
                markline_opts=opts.MarkLineOpts(data=[opts.MarkLineItem(y=0, name="平水线"),
                                                      opts.MarkLineItem(y=float(last_rate * 100), name=f"当前 {last_rate*100:+.2f}% ({pct:.0f}%分位)")]))
@@ -155,9 +157,9 @@ line_rate = (
 hist_basis = (
     Bar(init_opts=opts.InitOpts(width="1200px", height="340px"))
     .add_xaxis([f"{lo:.1f}~{hi:.1f}%" for lo, hi in
-                zip(np.histogram(basis["dom_basis_rate"] * 100, bins=25)[1][:-1],
-                    np.histogram(basis["dom_basis_rate"] * 100, bins=25)[1][1:])])
-    .add_yaxis("天数", [int(v) for v in np.histogram(basis["dom_basis_rate"] * 100, bins=25)[0]],
+                zip(np.histogram(basis["basis_rate"] * 100, bins=25)[1][:-1],
+                    np.histogram(basis["basis_rate"] * 100, bins=25)[1][1:])])
+    .add_yaxis("天数", [int(v) for v in np.histogram(basis["basis_rate"] * 100, bins=25)[0]],
                itemstyle_opts=opts.ItemStyleOpts(color="#9467bd"))
     .set_global_opts(
         title_opts=opts.TitleOpts(title=f"基差率分布(近{len(basis)}日,当前{last_rate*100:+.2f}% 处于{pct:.0f}%分位)"),
@@ -232,7 +234,7 @@ if inv is not None:
 arb_html = ""
 for days, (financing, row) in arbs.items():
     arb_html += f"""<p><b>持有 {days} 天(资金成本 {financing:.1f} 元/吨,年化{FINANCING_RATE*100:.1f}%):</b>
-    收敛至平水净收益 {row['收敛至平水']:+.1f} 元/吨 | 升水20元 {row['升水20元']:+.1f} | 升水50元 {row['升水50元']:+.1f} |
+    收敛至平水净收益 {row['收敛至平水']:+.1f} 元/吨 | 期货升水20元 {row['期货升水20元']:+.1f} | 期货升水50元 {row['期货升水50元']:+.1f} |
     盈亏平衡基差 {row['盈亏平衡基差']:+.1f} 元/吨</p>"""
 
 sig_html = "".join(
@@ -274,7 +276,7 @@ charts_html = "".join(c if isinstance(c, str) else f'<div class="chart">{c.rende
 html_foot = f"""<div class="conclusion">
 <h2>正套损益测算(买入现货+卖出期货)</h2>
 {arb_html}
-<p><b>结论</b>: 当前基差 {last_basis:+.0f} 元/吨,基差率 {last_rate*100:+.2f}% 处于近{len(basis)}日的 {pct:.0f}% 分位。正套盈亏=初始基差-目标基差-资金成本,盈亏平衡基差为 {arbs[30][1]['盈亏平衡基差']:+.1f} 元/吨(30天)。按"收敛至样本均值"情景(近{len(basis)}日均值 {mean_basis:+.0f} 元/吨)测算净收益空间更大,但依赖基差向均值回归的假设;按保守的"收敛至平水"情景,30天净收益约 {arbs[30][1]['收敛至平水']:+.1f} 元/吨,仅薄利。注意:测算仅计资金成本,未计仓储/增值税/交割费用,实际净收益更低;基差取自主力连续合约,换月存在跳变,结果为近似口径。</p>
+<p><b>结论</b>: 当前基差 {last_basis:+.0f} 元/吨(现货{('升水' if last_basis > 0 else '贴水')}),基差率 {last_rate*100:+.2f}% 处于近{len(basis)}日的 {pct:.0f}% 分位。正套盈亏=目标基差-初始基差-资金成本,盈亏平衡基差为 {arbs[30][1]['盈亏平衡基差']:+.1f} 元/吨(30天)。按"收敛至样本均值"情景(近{len(basis)}日均值 {mean_basis:+.0f} 元/吨)测算净收益空间更大,但依赖基差向均值回归的假设;按保守的"收敛至平水"情景,30天净收益约 {arbs[30][1]['收敛至平水']:+.1f} 元/吨,仅薄利。注意:测算仅计资金成本,未计仓储/增值税/交割费用,实际净收益更低;基差取自主力连续合约,换月存在跳变,结果为近似口径。</p>
 
 <h2>跟踪信号触发状态</h2>
 <table>
@@ -283,7 +285,7 @@ html_foot = f"""<div class="conclusion">
 </table>
 
 <h2>研究结论</h2>
-<p><b>1. 基差结构</b>: 基差率 {last_rate*100:+.2f}% 处于近{len(basis)}日 {pct:.0f}% 分位(近{len(basis)}日 {neg_basis_days:.0f}% 时间为期货贴水/现货升水),当前{('期货贴水、现货升水' if last_basis < 0 else '期货升水、现货贴水')},基差相对年内低点已有{('明显' if abs(last_basis) < 30 else '大幅')}修复。</p>
+<p><b>1. 基差结构</b>: 基差率 {last_rate*100:+.2f}% 处于近{len(basis)}日 {pct:.0f}% 分位(近{len(basis)}日 {neg_basis_days:.0f}% 时间为现货贴水/期货升水),当前{('现货升水、期货贴水' if last_basis > 0 else '现货贴水、期货升水')},基差相对年内高点已有{('明显' if abs(last_basis) < 30 else '大幅')}回落。</p>
 <p><b>2. 库存周期</b>: 最新库存 {last_inv:,.0f},近30日{'累库' if d_inv > 0 else '去库'} {d_inv:+.0f},{('累库压制现货' if d_inv > 0 else '去库支撑现货')},该信号需与基差方向交叉验证。</p>
 <p><b>3. 盘面利润</b>: {last_profit:+.0f} 元/吨,{('处于偏高水平,钢厂增产动力强(S5触发)' if last_profit > 500 else '处于盈亏线附近' if last_profit < 100 else '处于中性区间')},供应端压力需跟踪。</p>
 <p><b>4. 操作含义</b>: 以"基差分位 + 库存拐点 + 盘面利润"三维信号表为日常监控工具,任一维度变化触发复核——结论是动态的,框架是常驻的。</p>
