@@ -198,6 +198,21 @@ avg_win = wins.mean()
 avg_loss = losses.mean()
 pf = abs(wins.sum() / losses.sum()) if losses.sum() else float("inf")
 
+# 完整仓位口径(与 README/简历一致,避免同一份报告出现两套未对照的数字)
+def _rr(d):
+    aw = d.loc[d["仓位盈亏"] > 0, "仓位盈亏"].mean()
+    al = d.loc[d["仓位盈亏"] < 0, "仓位盈亏"].mean()
+    return abs(aw / al) if al else float("nan")
+
+n_pos = len(pos)
+wr_pos = (pos["仓位盈亏"] > 0).mean() * 100
+rr_pos = _rr(pos)
+rr_h1 = _rr(pos[pos["开仓时间"] < "2025-07-01"])
+rr_12m = _rr(pos[pos["开仓时间"] >= pos["开仓时间"].max() - pd.Timedelta(days=365)])
+pnl_h1 = pos.loc[pos["开仓时间"] < "2025-07-01", "仓位盈亏"].sum()
+pnl_26 = pos.loc[pos["开仓时间"] >= "2026-01-01", "仓位盈亏"].sum()
+cut_pct = (1 - abs(pnl_26) / abs(pnl_h1)) * 100 if pnl_h1 else float("nan")
+
 html_head = f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head><meta charset="UTF-8"><title>交易绩效分析报告</title>
@@ -227,7 +242,7 @@ h1 {{ text-align: center; color: #222; }}
   <div class="card"><div class="num">{len(closes)}</div><div class="lbl">平仓笔数</div></div>
 </div>
 <div class="conclusion" style="margin-bottom:20px;">
-<b>数据口径说明：</b>本报告基于<u>成交明细</u>（{len(closes)} 笔平仓单边记录）计算，故胜率 {win_rate:.1f}%、盈亏比 {abs(avg_win/avg_loss):.2f} 等指标与基于<u>821 个完整仓位（开平配对）</u>的口径（胜率 47.1%、盈亏比 0.54）不同，两者相互印证、口径均已注明，详见 GitHub README 与代码。
+<b>数据口径说明：</b>本报告基于<u>成交明细</u>（{len(closes)} 笔平仓单边记录）计算，故胜率 {win_rate:.1f}%、盈亏比 {abs(avg_win/avg_loss):.2f} 等指标与基于<u>{n_pos} 个完整仓位（开平配对）</u>的口径（胜率 {wr_pos:.1f}%、盈亏比 {rr_pos:.2f}）不同，两者相互印证、口径均已注明，详见 GitHub README 与代码。
 </div>
 """
 
@@ -236,8 +251,8 @@ html_foot = f"""<div class="conclusion">
 <p><b>1. 盈亏比失衡是亏损主因</b>：胜率 {win_rate:.1f}%（{len(wins)}胜/{len(losses)}负），但平均盈利 {avg_win:+.3f} 单位 vs 平均亏损 {avg_loss:+.3f} 单位，盈利单持有不足（赚小亏大）。</p>
 <p><b>2. 交易成本过高</b>：累计手续费 {total_fee:.2f} 单位，占净亏损的 {abs(total_fee/total_pnl)*100:.0f}%，过度交易侵蚀利润。</p>
 <p><b>3. 方向性差异显著</b>：做多累计 {dir_pnl.get('做多',0):+.1f} 单位 vs 做空 {dir_pnl.get('做空',0):+.1f} 单位，做多为主要亏损来源。</p>
-<p><b>4. 风控纪律有效</b>：前期爆仓 3 次后，连续 19 个月零爆仓，未出现单次大额亏损失控。</p>
-<p><b>5. 改进验证（滑动窗口）</b>：盈亏比从 0.39 修复至 0.79、总亏损收窄 89%——改善来自可量化的策略调整，而非运气。</p>
+<p><b>4. 风控纪律有效</b>：前期 3 次仓位强平（2025-01 两次、2026-06 一次极小仓位）后重建风控体系，账户未发生爆仓（资金未归零），未出现单次大额亏损失控。</p>
+<p><b>5. 改进验证</b>：盈亏比从 {rr_h1:.2f} 修复至 {rr_12m:.2f}（2025H1→近一年，完整仓位口径）、阶段亏损收窄 {cut_pct:.0f}%——改善来自可量化的策略调整，而非运气。</p>
 </div>
 </div></body></html>"""
 

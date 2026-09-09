@@ -188,7 +188,7 @@ def setup():
     try:
         contract_capital = float(input("合约总资金 (单位): ").strip())
         etf_capital = float(input("ETF总资金 (元): ").strip())
-        risk = float(input("每笔最大亏损% (默认 0.5): ").strip() or "0.5")
+        risk = float(input("每笔最大亏损% (默认 1.5, 对应1%-2%风险纪律): ").strip() or "1.5")
         config = {
             "contract_capital": contract_capital,
             "etf_capital": etf_capital,

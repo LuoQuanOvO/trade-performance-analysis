@@ -83,6 +83,8 @@ for _, r in all_t.iterrows():
 if durations:
     d = np.array(durations)
     print(f"   平均持仓: {d.mean():.1f} 小时 | 中位数: {np.median(d):.1f} 小时 | 最长: {d.max():.1f} 小时")
+    print("   注: 本法按同品种Open→Close顺序近似配对,多次加减仓时会错配;"
+          "权威持仓时长以逐仓位表口径为准(position_analysis.py, 中位数约0.4小时)")
 
 print("\n7. 每笔风险(R倍数)分布")
 risk = pd.to_numeric(closes["净盈亏"], errors="coerce").values

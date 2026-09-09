@@ -76,7 +76,8 @@ try:
     inv["日期"] = pd.to_datetime(inv["日期"])
     inv["库存"] = pd.to_numeric(inv["库存"], errors="coerce")
     inv = inv.sort_values("日期").reset_index(drop=True)
-    print(f"  库存数据: {len(inv)} 条")
+    inv = inv[inv["日期"] <= pd.to_datetime(AS_OF, format="%Y%m%d")].reset_index(drop=True)  # 与AS_OF截断一致,避免价格与库存混口径
+    print(f"  库存数据: {len(inv)} 条 (截至 {AS_OF})")
 except Exception as e:
     inv = None
     print(f"  库存失败: {e}")
@@ -96,7 +97,7 @@ print(f"基差率处于近{len(b)}个交易日样本的 {pct:.0f}% 分位(越低
 print(f"样本内基差率: min {b['basis_rate'].min()*100:+.2f}% | 均值 {b['basis_rate'].mean()*100:+.2f}% | max {b['basis_rate'].max()*100:+.2f}%")
 
 # ============ 3. 期现正套损益测算 ============
-# 口径说明: 基差取自主力连续合约(换月存在跳变),测算为近似;
+# 口径说明: 基差取即期主力合约(换月存在跳变),价格图为连续合约(RB0),测算为近似;
 # 成本仅计资金成本(年化4.5%),未计仓储/增值税/交割费用,实际净收益更低。
 print("\n=== 3. 期现正套损益测算(买入现货+卖出期货) ===")
 print(f"现货 {latest_spot:.0f} | 期货 {b['dominant_contract_price'].iloc[-1]:.0f} | 基差 {latest_basis:+.0f}")
@@ -134,21 +135,29 @@ if inv is not None and len(inv) >= 2:
 else:
     d_inv = None
 
-def signal(no, name, cond, desc):
+def signal(no, name, cond, desc_on, desc_off):
+    """desc_on=触发时的解读; desc_off=未触发时的当前状态说明(避免未触发却打印相反情景)"""
+    desc = desc_on if cond else desc_off
     signals.append((no, name, "✅ 触发" if cond else "⏸ 未触发", desc))
     print(f"  {no}. [{name}] {'✅ 触发' if cond else '⏸ 未触发'} — {desc}")
 
 d_inv_str = f"{d_inv:+.0f}" if d_inv is not None else "N/A"
+d_inv_word = ("累库" if (d_inv or 0) > 0 else "去库") if d_inv is not None else "库存N/A"
 signal("S1", "基差修复观察", d_inv is not None and d_inv < 0 and pct > 70,
-       f"去库({d_inv_str}) + 基差率高分位({pct:.0f}%) → 期货深贴水,去库支撑现货,贴水有望修复(基差回落),关注反套/锁价机会")
+       f"去库({d_inv_str}) + 基差率高分位({pct:.0f}%) → 期货深贴水,去库支撑现货,贴水有望修复(基差回落),关注反套/锁价机会",
+       f"当前{d_inv_word}({d_inv_str}) + 基差率分位({pct:.0f}%) → 未同时满足'去库+高分位',暂无基差修复信号")
 signal("S2", "收敛止盈", pct < 30,
-       f"基差率分位({pct:.0f}%)过低 → 期货升水处于历史高位,基差收敛接近完成,反套止盈/离场;正套观察(当前绝对基差小,收敛空间有限)")
+       f"基差率分位({pct:.0f}%)过低 → 期货升水处于历史高位,基差收敛接近完成,反套止盈/离场;正套观察(当前绝对基差小,收敛空间有限)",
+       f"基差率分位({pct:.0f}%)未低于30% → 期货升水未至极值区,暂不触发收敛止盈")
 signal("S3", "基差修复受阻", d_inv is not None and d_inv > 0 and pct > 70,
-       "累库 + 期货深贴水(现货升水高位) → 基本面偏弱,基差修复受阻风险")
+       "累库 + 期货深贴水(现货升水高位) → 基本面偏弱,基差修复受阻风险",
+       f"当前{d_inv_word}({d_inv_str}) + 基差率分位({pct:.0f}%) → 未同时满足'累库+高分位',暂无基差修复受阻信号")
 signal("S4", "减产预期", last_profit < 0,
-       f"盘面利润 {last_profit:+.0f} 元/吨 → 钢厂亏损,减产预期升温,关注供应收缩对现货支撑")
+       f"盘面利润 {last_profit:+.0f} 元/吨 → 钢厂亏损,减产预期升温,关注供应收缩对现货支撑",
+       f"盘面利润 {last_profit:+.0f} 元/吨(为正) → 钢厂未亏损,暂无减产预期")
 signal("S5", "增产压力", last_profit > 500,
-       f"盘面利润 {last_profit:+.0f} 元/吨 → 钢厂高利润,增产动力强,关注供应压力")
+       f"盘面利润 {last_profit:+.0f} 元/吨 → 钢厂高利润,增产动力强,关注供应压力",
+       f"盘面利润 {last_profit:+.0f} 元/吨(未超500) → 暂无明显增产压力")
 
 # ============ 6. 图表 ============
 print("\n=== 6. 生成图表 ===")
