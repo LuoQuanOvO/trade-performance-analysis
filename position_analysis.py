@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""完整仓位级分析: 基于历史仓位导出(开平配对,含资金费用)"""
+"""完整仓位级分析: 基于历史仓位导出(开平配对,含持仓费用)"""
 import pandas as pd
 import re, glob
 
@@ -12,7 +12,7 @@ def num(s):
 
 pos_file = r"data/positions.csv"
 pos = pd.read_csv(pos_file)
-for c in ["平仓量", "平仓价值", "仓位盈亏", "已实现盈亏", "资金费用", "开仓手续费", "平仓手续费"]:
+for c in ["平仓量", "平仓价值", "仓位盈亏", "已实现盈亏", "持仓费用", "开仓手续费", "平仓手续费"]:
     pos[c] = pos[c].apply(num)
 
 pos["开仓时间"] = pd.to_datetime(pos["开仓时间"])
@@ -28,9 +28,9 @@ print(f"仓位总数: {len(pos)} | 时间范围: {pos['开仓时间'].min()} ~ {
 print("\n1. 盈亏全景")
 print(f"   仓位盈亏合计: {pos['仓位盈亏'].sum():+.2f} 单位")
 print(f"   已实现盈亏: {pos['已实现盈亏'].sum():+.2f} 单位")
-print(f"   资金费用(过夜成本): {pos['资金费用'].sum():+.2f} 单位")
+print(f"   持仓费用(隔夜成本): {pos['持仓费用'].sum():+.2f} 单位")
 print(f"   开仓手续费: {pos['开仓手续费'].sum():.2f} | 平仓手续费: {pos['平仓手续费'].sum():.2f}")
-print(f"   总成本(手续费+资金费用): {pos['开仓手续费'].sum()+pos['平仓手续费'].sum()+pos['资金费用'].sum():.2f}")
+print(f"   总成本(手续费+持仓费用): {pos['开仓手续费'].sum()+pos['平仓手续费'].sum()+pos['持仓费用'].sum():.2f}")
 
 print("\n2. 持仓时长(真实)")
 print(f"   平均: {pos['持仓小时'].mean():.1f} 小时 | 中位数: {pos['持仓小时'].median():.1f} 小时")
@@ -46,8 +46,8 @@ s = pos.groupby("品种")["仓位盈亏"].sum().sort_values()
 print("   最赚:", s.tail(5).to_string().replace("\n", "\n        "))
 print("   最亏:", s.head(5).to_string().replace("\n", "\n        "))
 
-print("\n5. 资金费用Top5(长持仓成本)")
-print(pos.nlargest(5, "资金费用")[["品种", "方向类型", "持仓小时", "资金费用"]].round(2).to_string())
+print("\n5. 持仓费用Top5(长持仓成本)")
+print(pos.nlargest(5, "持仓费用")[["品种", "方向类型", "持仓小时", "持仓费用"]].round(2).to_string())
 
 print("\n6. 每仓位盈亏分布")
 import numpy as np

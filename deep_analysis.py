@@ -65,13 +65,13 @@ print("   亏损最多的3个时段:", ", ".join(f"{h}时({v:+.2f})" for h, v in
 print("\n6. 持仓时长近似估算(按同品种Open→Close配对)")
 opens = df[df["方向"].str.contains("Open", case=False, na=False)].copy()
 all_t = pd.concat([
-    opens[["时间", "币种", "合约", "成交数量"]].assign(typ="O"),
-    closes[["时间", "币种", "合约", "成交数量"]].assign(typ="C"),
+    opens[["时间", "合约", "成交数量"]].assign(typ="O"),
+    closes[["时间", "合约", "成交数量"]].assign(typ="C"),
 ]).sort_values("时间")
 durations = []
 pending = []
 for _, r in all_t.iterrows():
-    key = (r["币种"], r["合约"])
+    key = r["合约"]
     if r["typ"] == "O":
         pending.append((key, r["时间"]))
     else:

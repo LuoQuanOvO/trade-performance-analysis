@@ -30,7 +30,7 @@ trade-performance-analysis/
 ├── trade_analysis.py      基础绩效统计(胜率/盈亏比/品种归因) + 4张静态图
 ├── make_report.py         交互式HTML分析报告(pyecharts)
 ├── deep_analysis.py       深度分析(回撤/连亏/星期效应/时段效应)
-├── position_analysis.py   完整仓位级分析(开平配对/资金费用/真实持仓时长)
+├── position_analysis.py   完整仓位级分析(开平配对/持仓费用/真实持仓时长)
 ├── fxreplay_analysis.py   FXReplay回测复盘归因(独立数据交叉验证)
 ├── progress_analysis.py   阶段对比(2025上半年 vs 2026)
 ├── rolling_analysis.py    滑动窗口分析(近1月/3月/半年/1年)
@@ -55,7 +55,7 @@ trade-performance-analysis/
 | 指标 | 数值 |
 |------|------|
 | 仓位盈亏(完整配对口径) | -427.42 单位 |
-| 手续费+资金费用 | -204.36 单位(占亏损约 48%) |
+| 手续费+持仓费用 | -204.36 单位(占亏损约 48%) |
 | 仓位胜率 | 47.1%(387盈 / 433亏 / 1持平) |
 | 盈亏比 | 0.53(平均盈利 +1.01 / 平均亏损 -1.89) |
 | 持仓时长 | 中位数 0.4 小时(75%仓位不足1小时,超短线) |
@@ -66,7 +66,7 @@ trade-performance-analysis/
 
 1. **盈亏比失衡是亏损主因**:胜率接近五五开(47.1%),但盈利单持有不足(赚小亏大),
    平均盈利仅为平均亏损的 54%
-2. **过度交易成本高**:手续费+资金费用占亏损约 48%,持仓中位数仅 0.4 小时(75%仓位不足1小时)
+2. **过度交易成本高**:手续费+持仓费用占亏损约 48%,持仓中位数仅 0.4 小时(75%仓位不足1小时)
 3. **方向性差异显著**:做空仅亏 -29 单位,做多亏 -398 单位,逆势做多是主要亏损来源
 
 ### 深度分析发现(deep_analysis.py)
@@ -240,7 +240,7 @@ pip install -r requirements.txt
 python trade_analysis.py       # 生成静态图表
 python make_report.py          # 生成交互式HTML报告
 python deep_analysis.py        # 深度分析(回撤/连亏/星期效应/时段效应)
-python position_analysis.py    # 完整仓位级分析(开平配对/资金费用/持仓时长)
+python position_analysis.py    # 完整仓位级分析(开平配对/持仓费用/持仓时长)
 python fxreplay_analysis.py    # FXReplay回测复盘归因分析
 python progress_analysis.py    # 进步轨迹分析(胜率/盈亏比演进)
 python rolling_analysis.py     # 滑动窗口分析(近1月/3月/半年/1年)

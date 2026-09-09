@@ -15,7 +15,7 @@ import re
 # 大宗商品品类: 保留真名 (黄金/白银/原油等, 与简历/README 口径一致)
 KEEP = {"XAU", "XAG", "CL"}
 
-# 报价货币后缀(数据侧统一为 3~4 字母, 如 USDT/USDC/USD), 用通用长度规则剥离
+# 报价货币后缀(数据侧统一为 3~4 字母), 用通用长度规则剥离
 _QUOTE_SUFFIX = re.compile(r"[A-Z]{3,4}$")
 
 _counter = {}
@@ -29,7 +29,7 @@ def _sym_code(n: int) -> str:
 
 
 def base(symbol: str) -> str:
-    """提取合约基名(以占位符示例): 'SYMUSDT Short·Isolated' -> 'SYM'; 'XAUUSDT' -> 'XAU'.
+    """提取合约基名(以占位符示例): 'XYZABC Short·Isolated' -> 'XYZ'; 'XAUABC' -> 'XAU'.
 
     剥离报价货币后缀后若剩余过短(如本无后缀的4字母基名被误剥), 则保留原样.
     """
