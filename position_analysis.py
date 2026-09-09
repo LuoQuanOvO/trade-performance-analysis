@@ -57,3 +57,32 @@ print(f"   平均盈利: {pnl[pnl > 0].mean():+.3f} | 平均亏损: {pnl[pnl <= 
 
 print("\n7. 盈利仓位最大回吐(MFE模拟)")
 print("   盈利仓位中, 最高浮盈(以平仓价-开仓价计算): 说明盈利未充分兑现")
+
+print("\n8. 连续盈亏(逐仓位口径)")
+seq = pos.sort_values("全部平仓时间")["仓位盈亏"].values
+max_win = max_loss = cur_win = cur_loss = 0
+for v in seq:
+    if v > 0:
+        cur_win += 1; cur_loss = 0
+    elif v < 0:
+        cur_loss += 1; cur_win = 0
+    else:
+        cur_win = cur_loss = 0
+    max_win = max(max_win, cur_win); max_loss = max(max_loss, cur_loss)
+print(f"   最长连续亏损: {max_loss} 笔 | 最长连续盈利: {max_win} 笔")
+
+print()
+print("9. 最大回撤(逐仓位累计口径)")
+seq2 = pos.sort_values("全部平仓时间")
+cum3 = seq2["仓位盈亏"].cumsum()
+peak3 = cum3.cummax()
+dd3 = cum3 - peak3
+i3 = dd3.idxmin()
+print(f"   全期最大回撤: {dd3.min():.2f} 单位 (峰值 {peak3.loc[i3]:+.2f} → 谷值 {cum3.loc[i3]:+.2f})")
+for label, d0, d1 in [("2025H1", "2025-01-01", "2025-07-01"), ("2025H2", "2025-07-01", "2026-01-01"), ("2026", "2026-01-01", "2027-01-01")]:
+    seg = seq2[(seq2["全部平仓时间"] >= d0) & (seq2["全部平仓时间"] < d1)]
+    if len(seg) == 0:
+        continue
+    c = seg["仓位盈亏"].cumsum()
+    dd = (c - c.cummax()).min()
+    print(f"   {label}: 段内最大回撤 {dd:+.2f} 单位")

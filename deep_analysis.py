@@ -24,6 +24,13 @@ peak = np.maximum.accumulate(cum)
 dd = cum - peak
 print(f"   最大回撤: {dd.min():.2f} 单位, 发生在月度序列第{np.argmin(dd)+1}个月(相对最高点)")
 
+print("\n1b. 最大回撤(成交明细口径,逐笔累计)")
+cum2 = np.cumsum(pnl)
+peak2 = np.maximum.accumulate(cum2)
+dd2 = cum2 - peak2
+i2 = int(np.argmin(dd2))
+print(f"   最大回撤: {dd2.min():.2f} 单位 (峰值 {peak2[i2]:+.2f} → 谷值 {cum2[i2]:+.2f})")
+
 print("\n2. 连续盈利/连续亏损(单笔)")
 streak = 0
 max_win_streak = max_loss_streak = 0
@@ -87,3 +94,8 @@ print(f"   小额亏损(0~-2 单位)占比: {len(r_losses[(r_losses > -2)])/len(
 print("\n8. 若改进盈亏比到1.5(模拟): 盈亏同比例调整")
 sim = np.where(pnl > 0, pnl * 1.5, pnl)
 print(f"   原总盈亏: {pnl.sum():+.2f} -> 模拟盈亏: {sim.sum():+.2f} 单位")
+
+print("\n9. 强平与主动平仓分列")
+liq_mask = closes["方向"].str.contains("Liquidation", case=False, na=False)
+print(f"   强平(仓位级): {int(liq_mask.sum())} 笔 | 合计 {closes.loc[liq_mask, '净盈亏'].sum():+.2f} 单位")
+print(f"   主动平仓: {int((~liq_mask).sum())} 笔 | 合计 {closes.loc[~liq_mask, '净盈亏'].sum():+.2f} 单位")

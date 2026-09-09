@@ -22,7 +22,8 @@ OUT = r"./black_series"
 os.makedirs(OUT, exist_ok=True)
 
 # ============ 参数 ============
-SPOT_LOOKBACK_TRADING_DAYS = 180   # 现货/基差回看窗口(约一年交易日)
+AS_OF = os.environ.get("AS_OF", "").strip() or datetime.date.today().strftime("%Y%m%d")  # 数据截止日, 可用环境变量 AS_OF=YYYYMMDD 复现历史
+SPOT_LOOKBACK_TRADING_DAYS = 180   # 现货/基差回看窗口(交易日, 非自然日)
 FINANCING_RATE = 0.045             # 资金成本年化(正套测算)
 HOLD_DAYS = [30, 60]               # 正套持有期情景(天)
 PROCESS_FEE = 400                  # 吨钢加工费(估算常数)
@@ -34,7 +35,7 @@ print("=== 1. 获取数据 ===")
 
 def get_main(symbol, start="20250101"):
     df = ak.futures_main_sina(symbol=symbol, start_date=start,
-                              end_date=datetime.date.today().strftime("%Y%m%d"))
+                              end_date=AS_OF)
     df["日期"] = pd.to_datetime(df["日期"])
     df["收盘价"] = pd.to_numeric(df["收盘价"], errors="coerce")
     return df.sort_values("日期").reset_index(drop=True)
@@ -49,7 +50,7 @@ j_fut = get_main("J0")
 print(f"  铁矿: {len(i_fut)} 条 | 焦炭: {len(j_fut)} 条")
 
 print(f"拉取螺纹钢现货价与基差(近{SPOT_LOOKBACK_TRADING_DAYS}个交易日)...")
-trade_days = [d for d in pd.date_range(fut["日期"].iloc[-SPOT_LOOKBACK_TRADING_DAYS], fut["日期"].iloc[-1], freq="D")]
+trade_days = list(fut["日期"].iloc[-SPOT_LOOKBACK_TRADING_DAYS:])  # 取真实交易日序列(非日历日)
 basis_rows = []
 for i, d in enumerate(trade_days):
     ds = d.strftime("%Y%m%d")
@@ -154,7 +155,7 @@ print("\n=== 6. 生成图表 ===")
 
 # 图1: 期货价格+基差
 fig, ax1 = plt.subplots(figsize=(12, 5))
-ax1.plot(fut["日期"], fut["收盘价"], color="#1f77b4", linewidth=1.2, label="螺纹钢期货主力收盘价")
+ax1.plot(fut["日期"], fut["收盘价"], color="#1f77b4", linewidth=1.2, label="螺纹钢期货主力连续(RB0)")
 ax1.set_ylabel("价格 (元/吨)", color="#1f77b4")
 ax2 = ax1.twinx()
 ax2.bar(b["date"], b["basis"], color=["#2ca02c" if v > 0 else "#d62728" for v in b["basis"]], alpha=0.6, width=1.5, label="基差(现货-期货)")
@@ -166,6 +167,7 @@ lines1, labels1 = ax1.get_legend_handles_labels()
 lines2, labels2 = ax2.get_legend_handles_labels()
 ax1.legend(lines1 + lines2, labels1 + labels2, loc="best", fontsize=9)
 fig.tight_layout()
+fig.text(0.01, 0.005, "注: 价格线为连续合约(RB0), 基差口径为即期主力合约, 换月时两者存在差异", fontsize=8, color="#888888")
 fig.savefig(os.path.join(OUT, "rb_price_basis.png"), dpi=150)
 print("图1: rb_price_basis.png")
 

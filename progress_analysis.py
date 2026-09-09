@@ -40,7 +40,7 @@ def month_metrics(df):
     hold = df["持仓小时"].median()
     short_pct = (df["方向类型"] == "做空").mean() * 100
     total = df["仓位盈亏"].sum()
-    return {"胜率": wins, "盈亏比": rr, "持仓中位(h)": hold, "做空占比%": short_pct, "月盈亏": total, "笔数": len(df)}
+    return {"胜率": wins, "盈亏比": rr, "持仓中位(h)": hold, "做空占比%": short_pct, "月盈亏": total, "月数": df["月"].nunique(), "笔数": len(df)}
 
 rows = {}
 for m, g in pos.groupby("月"):
@@ -64,7 +64,7 @@ s3 = stage(pos, "2026-01-01", "2027-01-01")
 print("\n=== 阶段对比(2025上 / 2025下 / 2026) ===")
 print("阶段      胜率  盈亏比  持仓h  做空%  月均盈亏  笔数")
 for name, s in [("2025上", s1), ("2025下", s2), ("2026", s3)]:
-    print(f"{name}  {s['胜率']:5.1f}%  {s['盈亏比']:.2f}  {s['持仓中位(h)']:5.1f}  {s['做空占比%']:5.1f}  {s['月盈亏']/max(len(rows)*0.0,1):+.2f}  {s['笔数']}")
+    print(f"{name}  {s['胜率']:5.1f}%  {s['盈亏比']:.2f}  {s['持仓中位(h)']:5.1f}  {s['做空占比%']:5.1f}  {s['月盈亏']/max(s['月数'],1):+.2f}  {s['笔数']}")
 
 # ============ 图1: 月度胜率+盈亏比演进 ============
 fig, ax1 = plt.subplots(figsize=(11, 5))
