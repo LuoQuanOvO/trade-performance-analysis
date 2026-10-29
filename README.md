@@ -35,7 +35,8 @@ trade-performance-analysis/
 ├── progress_analysis.py   阶段对比(2025上半年 vs 2026)
 ├── rolling_analysis.py    滑动窗口分析(近1月/3月/半年/1年)
 ├── data_sample.csv        脱敏样本数据(历史仓位前60条,格式参考)
-├── position_sizer/        仓位管理工具(风险预算+手续费建模+强平预警)
+├── position_sizer/        基础仓位管理工具(风险预算+手续费建模+强平预警)
+├── bpa_tools/             BPA风控模拟终端(HTML) + MT5实盘执行插件套件
 ├── report.html            交互式报告成品
 └── requirements.txt       依赖清单
 ```
@@ -227,11 +228,16 @@ S2信号提示基差收敛接近完成——反套离场区/正套观察。
 ![品种归因](3_symbol_pnl.png)
 ![多空对比](4_direction_pnl.png)
 
-## 相关工具:仓位计算器(position_sizer/)
+## 相关工具与实战套件
 
-自研仓位管理工具(Python CLI,零依赖):按固定比例风险预算反推每笔仓位,
-纳入双边手续费、合约最小步进与强平距离检查,将"单笔风险1%-2%"的纪律工具化。
-核心公式与使用说明见 [position_sizer/README.md](position_sizer/README.md)。
+### 1. 基础仓位计算器 (`position_sizer/`)
+自研仓位管理工具 (Python CLI, 零依赖)：按固定比例风险预算反推每笔仓位，纳入双边手续费、合约最小步进与强平距离检查，将“单笔风险1%-2%”的纪律工具化。核心公式与使用说明见 [position_sizer/README.md](position_sizer/README.md)。
+
+### 2. BPA 日内量化风控终端与实盘执行工具集 (`bpa_tools/`)
+围绕价格行为学 (Al Brooks Price Action) 与 1R 风险预算管理构建的实战风控与辅助执行套件：
+- **`BPA交易风控与概率模拟终端.html`**：单文件交互式风控终端，原生 Canvas 绘图，支持蒙特卡洛 200 条权益路径随机模拟（量化滑点与手续费磨损 Fee Drag、日风控熔断）、极端连败与理论破产概率压力测试 (Risk of Ruin)、凯利公式最优仓位极限测算；
+- **MT5 执行插件套件 (`.mq5` / `.ex5`)**：包含根据信号 K 线止损距离与浮动点差动态反推 1R 手数的自动计算器 (`BPA_Position_Calculator`)、快速挂单工具 (`BPA_Quick_Entry`) 及一键紧急风控全平工具 (`BPA_Close_All`)。
+详细文档与说明见 [bpa_tools/README.md](bpa_tools/README.md)。
 
 ## 运行方式
 

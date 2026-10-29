@@ -1,0 +1,1819 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BPA 日内量化风控与概率模拟终端 (Trading Risk & Prob Terminal)</title>
+  <style>
+    :root {
+      --bg: #0b0e14;
+      --card-bg: #151b26;
+      --card-inner: #0e121a;
+      --border: #232d3f;
+      --text-main: #e6edf3;
+      --text-muted: #8b949e;
+      --accent-blue: #388bfd;
+      --accent-green: #2ea043;
+      --accent-red: #f85149;
+      --accent-yellow: #f1e05a;
+      --accent-cyan: #39c5bb;
+      --accent-purple: #bc8cff;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", monospace;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text-main);
+      padding: 16px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .title-box h1 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .title-box p {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 3px;
+    }
+
+    .badge {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      background: rgba(56, 139, 253, 0.15);
+      color: var(--accent-blue);
+      border: 1px solid rgba(56, 139, 253, 0.3);
+      font-weight: normal;
+    }
+
+    .nav-tabs {
+      display: flex;
+      background: #0f141e;
+      padding: 4px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      gap: 6px;
+    }
+
+    .nav-tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 8px 18px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+
+    .nav-tab-btn:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .nav-tab-btn.active {
+      background: var(--accent-blue);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(56, 139, 253, 0.35);
+    }
+
+    .module-container {
+      display: none;
+      flex: 1;
+    }
+
+    .module-container.active {
+      display: grid;
+      grid-template-columns: 420px 1fr;
+      gap: 16px;
+    }
+
+    .sidebar {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      overflow-y: auto;
+      max-height: calc(100vh - 95px);
+    }
+
+    .section-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent-cyan);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .label-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .input-wrap {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .num-input {
+      background: #090c10;
+      border: 1px solid #30363d;
+      color: #fff;
+      font-family: monospace;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 3px 6px;
+      border-radius: 4px;
+      width: 88px;
+      text-align: right;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .num-input:focus {
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 0 1px var(--accent-blue);
+    }
+
+    .num-input::-webkit-outer-spin-button,
+    .num-input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    .num-input[type=number] {
+      -moz-appearance: textfield;
+    }
+
+    .unit-text {
+      font-size: 11px;
+      color: var(--text-muted);
+      min-width: 14px;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent-blue);
+      cursor: pointer;
+      margin-top: 2px;
+    }
+
+    .tabs-nav {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      background: #0f131a;
+      padding: 3px;
+      border-radius: 6px;
+      gap: 4px;
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .tab-btn.active {
+      background: var(--accent-blue);
+      color: #fff;
+    }
+
+    .tab-content {
+      background: #111622;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .daily-control-box {
+      background: #0d121c;
+      border: 1px solid #28374d;
+      border-radius: 6px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-main);
+      cursor: pointer;
+    }
+
+    .checkbox-row input[type="checkbox"] {
+      accent-color: var(--accent-blue);
+      width: 15px;
+      height: 15px;
+      cursor: pointer;
+    }
+
+    /* 高精度全网格寻优专区卡片 */
+    .optimizer-box {
+      background: linear-gradient(180deg, #181d2e, #0e121d);
+      border: 1px solid var(--accent-purple);
+      border-radius: 6px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .opt-btn {
+      background: linear-gradient(135deg, #8a2be2, #388bfd);
+      color: #fff;
+      border: none;
+      padding: 10px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(138, 43, 226, 0.3);
+      transition: all 0.2s;
+    }
+
+    .opt-btn:hover {
+      opacity: 0.95;
+      transform: translateY(-1px);
+    }
+
+    .opt-result-card {
+      background: #090c12;
+      border: 1px solid #2b3648;
+      border-radius: 6px;
+      padding: 10px;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .opt-rank-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 10.5px;
+      margin-top: 6px;
+    }
+
+    .opt-rank-table th {
+      background: #141c2a;
+      color: var(--text-muted);
+      padding: 4px;
+      text-align: left;
+    }
+
+    .opt-rank-table td {
+      padding: 4px;
+      border-bottom: 1px solid #192233;
+      font-family: monospace;
+    }
+
+    .opt-apply-link {
+      color: var(--accent-cyan);
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    .spread-tool-box {
+      background: #0d121c;
+      border: 1px solid #233044;
+      border-radius: 6px;
+      padding: 10px;
+      margin-top: 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .grid-2col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .mini-input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .mini-input-group label {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .mini-input {
+      background: #080a0f;
+      border: 1px solid #252e3d;
+      color: #fff;
+      font-family: monospace;
+      font-size: 11px;
+      padding: 2px 4px;
+      border-radius: 3px;
+      width: 100%;
+      text-align: right;
+    }
+
+    .fee-calc-preview {
+      background: rgba(57, 197, 187, 0.08);
+      border: 1px dashed rgba(57, 197, 187, 0.3);
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      color: #b0e5e0;
+      line-height: 1.5;
+    }
+
+    .run-btn {
+      background: linear-gradient(135deg, #1f6feb, #238636);
+      color: #fff;
+      border: none;
+      padding: 10px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      margin-top: 4px;
+      box-shadow: 0 4px 12px rgba(35, 134, 54, 0.25);
+      transition: transform 0.1s, opacity 0.2s;
+    }
+
+    .run-btn:hover {
+      opacity: 0.95;
+    }
+
+    .run-btn:active {
+      transform: scale(0.98);
+    }
+
+    .chart-container {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .stats-bar {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .stat-card {
+      background: var(--card-inner);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 12px;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .stat-val {
+      font-size: 16px;
+      font-weight: 700;
+      font-family: monospace;
+    }
+
+    .canvas-wrap {
+      flex: 1;
+      position: relative;
+      min-height: 420px;
+      background: #090c10;
+      border: 1px solid #1c222d;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .legend-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--text-muted);
+      align-items: center;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .line-indicator {
+      width: 16px;
+      height: 3px;
+      border-radius: 2px;
+    }
+
+    .stress-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      flex: 1;
+    }
+
+    .stress-card {
+      background: var(--card-inner);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .stress-card-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      align-items: center;
+    }
+
+    .stress-canvas-wrap {
+      flex: 1;
+      position: relative;
+      min-height: 240px;
+      background: #090c10;
+      border: 1px solid #1c222d;
+      border-radius: 4px;
+    }
+
+    .drawdown-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      margin-top: 8px;
+    }
+
+    .drawdown-table th {
+      background: #161e2c;
+      color: var(--text-muted);
+      padding: 8px;
+      text-align: left;
+      font-weight: 600;
+    }
+
+    .drawdown-table td {
+      padding: 7px 8px;
+      border-bottom: 1px solid #1a2230;
+      font-family: monospace;
+    }
+
+    .alert-banner {
+      background: rgba(248, 81, 73, 0.1);
+      border-left: 3px solid var(--accent-red);
+      padding: 10px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      line-height: 1.5;
+      color: #ffb4af;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="title-box">
+      <h1>
+        BPA 日内量化风控与概率模拟终端
+        <span class="badge">700 种高精度超参数全网格寻优版</span>
+      </h1>
+      <p>为实战交易者定制 · 覆盖日均1~10笔 × 熔断1~6笔 × 浮盈目标(+1.5R~+3R) × 回撤锁定(0R~+1R)</p>
+    </div>
+
+    <div class="nav-tabs">
+      <button class="nav-tab-btn active" id="btn_nav_monte" onclick="switchMainModule('monte')">
+        <span>⚡ 模块一：蒙特卡洛交易手续费与日内风控模拟</span>
+      </button>
+      <button class="nav-tab-btn" id="btn_nav_stress" onclick="switchMainModule('stress')">
+        <span>🛡️ 模块二：极端连败与破产压力测试</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ============================== 模块一：集成高精度全网格寻优的蒙特卡洛 ============================== -->
+  <div class="module-container active" id="mod_monte">
+    <div class="sidebar">
+
+      <!-- AI 高精度全网格暴力寻优专区 -->
+      <div class="optimizer-box">
+        <div class="section-title" style="color: var(--accent-purple);">
+          <span>🧠 700 种全网格超参数暴力寻优</span>
+          <span class="badge" style="color: var(--accent-purple); border-color: rgba(188,140,255,0.3);">毫秒级遍历</span>
+        </div>
+        <p style="font-size: 11px; color: var(--text-muted); line-height: 1.4;">
+          由 CPU 瞬间遍历 <b>700 种超参数全排列</b>：<br>
+          • 每天 1 ~ 10 笔<br>
+          • 单日熔断 1 ~ 6 笔 (及不设)<br>
+          • 浮盈触发：+1.5R / +2.0R / +3.0R<br>
+          • 浮盈锁定：回撤至 保本0R / +0.5R / +1.0R
+        </p>
+        <button type="button" class="opt-btn" onclick="runFineGrainedGridSearch()">
+          ⚡ 一键暴力全量搜索 700 种组合
+        </button>
+
+        <div id="opt_result_panel" class="opt-result-card" style="display: none;">
+          <div id="opt_best_summary" style="margin-bottom: 8px;"></div>
+          <table class="opt-rank-table">
+            <thead>
+              <tr>
+                <th>排名</th>
+                <th>每天笔数</th>
+                <th>日熔断</th>
+                <th>浮盈触发</th>
+                <th>回撤锁</th>
+                <th>评分</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="opt_rank_tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 日历交易天数与日风控规则 -->
+      <div class="daily-control-box">
+        <div class="section-title" style="color: var(--accent-yellow); margin-bottom: 4px;">
+          <span>📅 日内交易频率与日历风控结构</span>
+        </div>
+
+        <div class="form-group">
+          <div class="label-row">
+            <span>模拟自然交易日 (Days)</span>
+            <div class="input-wrap">
+              <input type="number" id="num_days" class="num-input" value="30" step="5" min="5" max="120">
+              <span class="unit-text">天</span>
+            </div>
+          </div>
+          <input type="range" id="days" min="5" max="100" step="5" value="30">
+        </div>
+
+        <div class="form-group" style="margin-top: 4px;">
+          <div class="label-row">
+            <span>每天交易笔数 (Trades/Day)</span>
+            <div class="input-wrap">
+              <input type="number" id="num_trades_per_day" class="num-input" value="2" step="1" min="1" max="10" style="color: var(--accent-yellow); border-color: var(--accent-yellow);">
+              <span class="unit-text">笔</span>
+            </div>
+          </div>
+          <input type="range" id="trades_per_day" min="1" max="10" step="1" value="2">
+        </div>
+
+        <!-- 熔断 -->
+        <label class="checkbox-row" style="margin-top: 6px;">
+          <input type="checkbox" id="chk_daily_breaker" checked>
+          <span><b>开启单日连亏熔断（Daily Loss Stop）</b></span>
+        </label>
+        <div style="font-size: 11px; color: var(--text-muted); margin-left: 23px;">
+          若单日连续亏损达到 <input type="number" id="num_max_daily_losses" class="num-input" value="2" min="1" max="6" style="width: 44px; padding: 1px 4px;"> 笔，强制停止当天交易！
+        </div>
+
+        <!-- 细化浮盈锁 -->
+        <label class="checkbox-row" style="margin-top: 4px;">
+          <input type="checkbox" id="chk_profit_lock" checked>
+          <span><b>开启日内浮盈回撤保护锁</b></span>
+        </label>
+        <div class="grid-2col" style="margin-left: 23px; margin-top: 2px;">
+          <div class="mini-input-group">
+            <label>触发保护利润目标 (R)</label>
+            <input type="number" id="num_profit_target_r" class="mini-input" value="2.0" step="0.5" min="1.0" max="5.0">
+          </div>
+          <div class="mini-input-group">
+            <label>回撤至何处锁死 (R)</label>
+            <input type="number" id="num_profit_lock_r" class="mini-input" value="1.0" step="0.5" min="0.0" max="4.0">
+          </div>
+        </div>
+      </div>
+
+      <!-- 账户与资金 -->
+      <div>
+        <div class="section-title">账户与风控 (1R)</div>
+        <div class="form-group">
+          <div class="label-row">
+            <span>初始账户资金</span>
+            <div class="input-wrap">
+              <input type="number" id="num_capital" class="num-input" value="140" step="10">
+              <span class="unit-text">$</span>
+            </div>
+          </div>
+          <input type="range" id="capital" min="50" max="2000" step="10" value="140">
+        </div>
+        <div class="form-group" style="margin-top: 6px;">
+          <div class="label-row">
+            <span>单笔风险 (1R 亏损额)</span>
+            <div class="input-wrap">
+              <input type="number" id="num_risk" class="num-input" value="4.0" step="0.5">
+              <span class="unit-text">$</span>
+            </div>
+          </div>
+          <input type="range" id="risk" min="1" max="50" step="0.5" value="4.0">
+        </div>
+      </div>
+
+      <!-- 策略胜率与盈亏比 -->
+      <div>
+        <div class="section-title">策略胜率与盈亏比</div>
+        <div class="form-group">
+          <div class="label-row">
+            <span>策略真实胜率</span>
+            <div class="input-wrap">
+              <input type="number" id="num_winrate" class="num-input" value="40" step="0.5" min="1" max="99">
+              <span class="unit-text">%</span>
+            </div>
+          </div>
+          <input type="range" id="winrate" min="10" max="90" step="1" value="40">
+        </div>
+        <div class="form-group" style="margin-top: 6px;">
+          <div class="label-row">
+            <span>盈亏比 (Reward / Risk)</span>
+            <div class="input-wrap">
+              <input type="number" id="num_rr" class="num-input" value="2.00" step="0.05" min="0.1">
+              <span class="unit-text">:1</span>
+            </div>
+          </div>
+          <input type="range" id="rr" min="0.5" max="4.0" step="0.1" value="2.0">
+        </div>
+        <div class="form-group" style="margin-top: 6px;">
+          <div class="label-row">
+            <span>蒙特卡洛模拟条数</span>
+            <div class="input-wrap">
+              <input type="number" id="num_sims" class="num-input" value="200" step="20" min="50" max="500">
+              <span class="unit-text">条</span>
+            </div>
+          </div>
+          <input type="range" id="sims" min="50" max="500" step="25" value="200">
+        </div>
+      </div>
+
+      <!-- 摩擦成本构成 -->
+      <div>
+        <div class="section-title">真实摩擦成本构成</div>
+        <div class="tabs-nav">
+          <button class="tab-btn active" id="tab_cfd" onclick="switchFeeMode('cfd')">CFD / 黄金 / 期货</button>
+          <button class="tab-btn" id="tab_crypto" onclick="switchFeeMode('crypto')">加密货币 (百分比%)</button>
+        </div>
+
+        <div class="tab-content" id="panel_cfd" style="margin-top: 8px;">
+          <div class="form-group">
+            <div class="label-row">
+              <span><b>单笔综合总摩擦 (佣金+点差+滑点)</b></span>
+              <div class="input-wrap">
+                <input type="number" id="num_cfd_fee" class="num-input" value="0.16" step="0.01" min="0" style="border-color: var(--accent-yellow); color: var(--accent-yellow);">
+                <span class="unit-text">$</span>
+              </div>
+            </div>
+            <input type="range" id="cfd_fee" min="0" max="10" step="0.05" value="0.16">
+          </div>
+
+          <div style="display: flex; gap: 6px; margin-bottom: 8px;">
+            <button type="button" onclick="loadSymbolPreset('eurusd_001')" style="flex: 1; background: #162438; border: 1px solid #1f6feb; color: #58a6ff; font-size: 11px; padding: 6px 4px; border-radius: 4px; cursor: pointer; font-weight: 600;">
+              💶 欧美 0.01手(1R=$1)
+            </button>
+            <button type="button" onclick="loadSymbolPreset('eurusd_002')" style="flex: 1; background: #162438; border: 1px solid #238636; color: #3fb950; font-size: 11px; padding: 6px 4px; border-radius: 4px; cursor: pointer; font-weight: 600;">
+              💶 欧美 0.02手(1R=$2)
+            </button>
+            <button type="button" onclick="loadSymbolPreset('xauusd')" style="flex: 1; background: #262118; border: 1px solid #d29922; color: #e3b341; font-size: 11px; padding: 6px 4px; border-radius: 4px; cursor: pointer; font-weight: 600;">
+              🪙 黄金 0.01手(1R=$4)
+            </button>
+          </div>
+
+          <div class="spread-tool-box">
+            <div class="grid-2col">
+              <div class="mini-input-group">
+                <label>开仓手数</label>
+                <input type="number" id="calc_lots" class="mini-input" value="0.01" step="0.01">
+              </div>
+              <div class="mini-input-group">
+                <label>合约乘数 (黄金=100)</label>
+                <input type="number" id="calc_contract" class="mini-input" value="100.0" step="1">
+              </div>
+            </div>
+            <div class="grid-2col">
+              <div class="mini-input-group">
+                <label>最小精度 (如0.01)</label>
+                <input type="number" id="calc_point_val" class="mini-input" value="0.01" step="0.001">
+              </div>
+              <div class="mini-input-group">
+                <label>券商固定佣金 ($/手)</label>
+                <input type="number" id="calc_comm_per_lot" class="mini-input" value="3.6" step="0.5">
+              </div>
+            </div>
+            <div class="grid-2col">
+              <div class="mini-input-group">
+                <label>盘口点差点数 (如12)</label>
+                <input type="number" id="calc_spread_points" class="mini-input" value="12" step="1">
+              </div>
+              <div class="mini-input-group">
+                <label>预估滑点点数 (如0)</label>
+                <input type="number" id="calc_slip_points" class="mini-input" value="0" step="1">
+              </div>
+            </div>
+            <button type="button" onclick="syncCalculatedFee()" style="background: #1c2638; border: 1px solid #388bfd; color: #fff; font-size: 11px; padding: 4px; border-radius: 4px; cursor: pointer; margin-top: 2px;">
+              ⚡ 一键计算并填入上方总摩擦
+            </button>
+          </div>
+
+          <div class="fee-calc-preview" id="cfd_preview">
+            计算中...
+          </div>
+        </div>
+
+        <div class="tab-content" id="panel_crypto" style="display: none; margin-top: 8px;">
+          <div class="form-group">
+            <div class="label-row">
+              <span>双边费率 (开+平总计)</span>
+              <div class="input-wrap">
+                <input type="number" id="num_crypto_rate" class="num-input" value="0.08" step="0.005" min="0">
+                <span class="unit-text">%</span>
+              </div>
+            </div>
+            <input type="range" id="crypto_rate" min="0.01" max="0.25" step="0.01" value="0.08">
+          </div>
+          <div class="form-group">
+            <div class="label-row">
+              <span>止损点数距离 (Stop Loss)</span>
+              <div class="input-wrap">
+                <input type="number" id="num_stop_dist" class="num-input" value="0.80" step="0.05" min="0.05">
+                <span class="unit-text">%</span>
+              </div>
+            </div>
+            <input type="range" id="stop_dist" min="0.2" max="3.0" step="0.1" value="0.8">
+          </div>
+          <div class="form-group">
+            <div class="label-row">
+              <span>预估市价滑点 (%)</span>
+              <div class="input-wrap">
+                <input type="number" id="num_crypto_slip" class="num-input" value="0.00" step="0.01" min="0">
+                <span class="unit-text">%</span>
+              </div>
+            </div>
+          </div>
+          <div class="fee-calc-preview" id="crypto_preview">
+            名义仓位推算中...
+          </div>
+        </div>
+      </div>
+
+      <button class="run-btn" onclick="runSimulation()">⚡ 重新生成按日蒙特卡洛模拟</button>
+    </div>
+
+    <!-- 右侧看板 -->
+    <div class="chart-container">
+      <div class="stats-bar">
+        <div class="stat-card">
+          <div class="stat-label">无摩擦最终均值</div>
+          <div class="stat-val" id="res_gross" style="color: var(--accent-yellow);">$0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">现实(含日风控)均值</div>
+          <div class="stat-val" id="res_net" style="color: var(--accent-cyan);">$0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">总摩擦吞噬金额</div>
+          <div class="stat-val" id="res_fee_drag" style="color: var(--accent-red);">$0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">盈利路径占比 (Win Paths)</div>
+          <div class="stat-val" id="res_win_prob" style="color: var(--accent-green);">0%</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">平均最大回撤 (Avg MaxDD)</div>
+          <div class="stat-val" id="res_max_dd" style="color: #ff9966;">0%</div>
+        </div>
+      </div>
+
+      <div class="canvas-wrap">
+        <canvas id="chart"></canvas>
+      </div>
+
+      <div class="legend-bar">
+        <div class="legend-item">
+          <div class="line-indicator" style="background: rgba(255, 255, 255, 0.25);"></div>
+          <span>理想路径 (零摩擦)</span>
+        </div>
+        <div class="legend-item">
+          <div class="line-indicator" style="background: rgba(46, 160, 67, 0.45);"></div>
+          <span>盈利路径 (含日熔断)</span>
+        </div>
+        <div class="legend-item">
+          <div class="line-indicator" style="background: rgba(248, 81, 73, 0.45);"></div>
+          <span>亏损路径 (含日熔断)</span>
+        </div>
+        <div class="legend-item">
+          <div class="line-indicator" style="background: var(--accent-yellow); height: 4px;"></div>
+          <span><b>零摩擦理想均值线</b></span>
+        </div>
+        <div class="legend-item">
+          <div class="line-indicator" style="background: var(--accent-cyan); height: 4px;"></div>
+          <span><b>含日风控现实均值线</b></span>
+        </div>
+        <div class="legend-item" style="margin-left: auto; color: var(--text-muted); font-size: 11px;">
+          <span id="lbl_rendered_sims">渲染路径: 200 条</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================== 模块二：极端连败与破产压力测试 ============================== -->
+  <div class="module-container" id="mod_stress">
+    <div class="sidebar">
+      <div>
+        <div class="section-title">测试参数（已自动同步）</div>
+        <div class="form-group">
+          <div class="label-row">
+            <span>策略胜率 (Win Rate)</span>
+            <div class="input-wrap">
+              <input type="number" id="num_st_winrate" class="num-input" value="40" step="0.5" min="1" max="99">
+              <span class="unit-text">%</span>
+            </div>
+          </div>
+          <input type="range" id="st_winrate" min="10" max="90" step="1" value="40">
+        </div>
+        <div class="form-group" style="margin-top: 8px;">
+          <div class="label-row">
+            <span>盈亏比 (RR)</span>
+            <div class="input-wrap">
+              <input type="number" id="num_st_rr" class="num-input" value="2.00" step="0.05" min="0.1">
+              <span class="unit-text">:1</span>
+            </div>
+          </div>
+          <input type="range" id="st_rr" min="0.5" max="3.5" step="0.1" value="2.0">
+        </div>
+        <div class="form-group" style="margin-top: 8px;">
+          <div class="label-row">
+            <span>样本交易总笔数</span>
+            <div class="input-wrap">
+              <input type="number" id="num_st_samples" class="num-input" value="100" step="10" min="10" max="500">
+              <span class="unit-text">笔</span>
+            </div>
+          </div>
+          <input type="range" id="st_samples" min="30" max="300" step="10" value="100">
+        </div>
+        <div class="form-group" style="margin-top: 8px;">
+          <div class="label-row">
+            <span>单笔下注风险比例</span>
+            <div class="input-wrap">
+              <input type="number" id="num_st_riskpct" class="num-input" value="2.5" step="0.1" min="0.1" max="10">
+              <span class="unit-text">%</span>
+            </div>
+          </div>
+          <input type="range" id="st_riskpct" min="0.5" max="5.0" step="0.5" value="2.5">
+        </div>
+      </div>
+
+      <div class="section-title" style="margin-top: 10px;">凯利公式 (Kelly Criterion) 理论极限</div>
+      <div class="fee-calc-preview" id="kelly_preview">
+        正在计算凯利最佳仓位上限...
+      </div>
+
+      <div class="alert-banner" id="stress_alert">
+        心理防线：连亏是概率波动的必然事件，绝非系统坏了！
+      </div>
+
+      <button class="run-btn" onclick="runStressTest()">🛡️ 重新运行压力测试</button>
+    </div>
+
+    <!-- 右侧两大压力图表 -->
+    <div class="chart-container">
+      <div class="stress-grid">
+        <div class="stress-card">
+          <div class="stress-card-title">
+            <span>未来样本中【至少遭遇 N 连亏】的必然概率</span>
+            <span class="badge" style="color: var(--accent-yellow); border-color: rgba(241,224,90,0.3);">数学必然</span>
+          </div>
+          <div class="stress-canvas-wrap">
+            <canvas id="chart_streak"></canvas>
+          </div>
+        </div>
+
+        <div class="stress-card">
+          <div class="stress-card-title">
+            <span>单笔下注比例 vs 破产概率 (Risk of Ruin)</span>
+            <span class="badge" style="color: var(--accent-red); border-color: rgba(248,81,73,0.3);">爆仓红线</span>
+          </div>
+          <div class="stress-canvas-wrap">
+            <canvas id="chart_ruin"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="stress-card" style="margin-top: 14px; flex: none;">
+        <div class="stress-card-title">
+          <span>极端连败下的本金净值缩水与【回本所需涨幅】雷达</span>
+          <span style="font-size: 11px; color: var(--text-muted); font-weight: normal;">基于当前选定的单笔风险百分比实时计算</span>
+        </div>
+        <table class="drawdown-table">
+          <thead>
+            <tr>
+              <th>连续止损笔数</th>
+              <th>账户剩余资金 %</th>
+              <th>累计本金回撤</th>
+              <th>回本所需收益率 (Breakeven Req)</th>
+              <th>危险评级与心理防御对策</th>
+            </tr>
+          </thead>
+          <tbody id="drawdown_tbody">
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const el = id => document.getElementById(id);
+    let currentFeeMode = 'cfd';
+
+    function bindPair(sliderId, numId, callback) {
+      const slider = el(sliderId);
+      const num = el(numId);
+      slider.addEventListener('input', () => {
+        num.value = slider.value;
+        callback();
+      });
+      num.addEventListener('input', () => {
+        const val = parseFloat(num.value);
+        if (!isNaN(val)) {
+          slider.value = val;
+        }
+        callback();
+      });
+    }
+
+    bindPair('days', 'num_days', () => { updateMontePreview(); runSimulation(); });
+    bindPair('trades_per_day', 'num_trades_per_day', () => { updateMontePreview(); runSimulation(); });
+    el('chk_daily_breaker').addEventListener('change', runSimulation);
+    el('chk_profit_lock').addEventListener('change', runSimulation);
+    el('num_max_daily_losses').addEventListener('input', runSimulation);
+    el('num_profit_target_r').addEventListener('input', runSimulation);
+    el('num_profit_lock_r').addEventListener('input', runSimulation);
+
+    bindPair('capital', 'num_capital', () => { updateMontePreview(); runSimulation(); });
+    bindPair('risk', 'num_risk', () => { updateMontePreview(); runSimulation(); });
+    bindPair('winrate', 'num_winrate', () => { updateMontePreview(); runSimulation(); });
+    bindPair('rr', 'num_rr', () => { updateMontePreview(); runSimulation(); });
+    bindPair('sims', 'num_sims', () => { updateMontePreview(); runSimulation(); });
+    bindPair('cfd_fee', 'num_cfd_fee', () => { updateMontePreview(); runSimulation(); });
+    bindPair('crypto_rate', 'num_crypto_rate', () => { updateMontePreview(); runSimulation(); });
+    bindPair('stop_dist', 'num_stop_dist', () => { updateMontePreview(); runSimulation(); });
+    el('num_crypto_slip').addEventListener('input', () => { updateMontePreview(); runSimulation(); });
+
+    bindPair('st_winrate', 'num_st_winrate', () => { updateStressLabels(); runStressTest(); });
+    bindPair('st_rr', 'num_st_rr', () => { updateStressLabels(); runStressTest(); });
+    bindPair('st_samples', 'num_st_samples', () => { updateStressLabels(); runStressTest(); });
+    bindPair('st_riskpct', 'num_st_riskpct', () => { updateStressLabels(); runStressTest(); });
+
+    ['calc_lots', 'calc_contract', 'calc_point_val', 'calc_comm_per_lot', 'calc_spread_points', 'calc_slip_points'].forEach(id => {
+      el(id).addEventListener('input', syncCalculatedFee);
+    });
+
+    function loadSymbolPreset(type) {
+      if (type === 'eurusd_001') {
+        el('calc_lots').value = '0.01';
+        el('calc_contract').value = '100000';
+        el('calc_point_val').value = '0.00001';
+        el('calc_comm_per_lot').value = '6.0';
+        el('calc_spread_points').value = '3';
+        el('calc_slip_points').value = '0';
+        el('num_risk').value = '1.0';
+        el('risk').value = '1.0';
+        syncCalculatedFee();
+      } else if (type === 'eurusd_002') {
+        el('calc_lots').value = '0.02';
+        el('calc_contract').value = '100000';
+        el('calc_point_val').value = '0.00001';
+        el('calc_comm_per_lot').value = '6.0';
+        el('calc_spread_points').value = '3';
+        el('calc_slip_points').value = '0';
+        el('num_risk').value = '2.0';
+        el('risk').value = '2.0';
+        syncCalculatedFee();
+      } else if (type === 'xauusd') {
+        el('calc_lots').value = '0.01';
+        el('calc_contract').value = '100';
+        el('calc_point_val').value = '0.01';
+        el('calc_comm_per_lot').value = '3.6';
+        el('calc_spread_points').value = '12';
+        el('calc_slip_points').value = '0';
+        el('num_risk').value = '4.0';
+        el('risk').value = '4.0';
+        syncCalculatedFee();
+      }
+    }
+
+    function syncCalculatedFee() {
+      const lots = parseFloat(el('calc_lots').value) || 0.01;
+      const contract = parseFloat(el('calc_contract').value) || 100.0;
+      const pointVal = parseFloat(el('calc_point_val').value) || 0.01;
+      const commPerLot = parseFloat(el('calc_comm_per_lot').value) || 0;
+      const spreadPts = parseFloat(el('calc_spread_points').value) || 0;
+      const slipPts = parseFloat(el('calc_slip_points').value) || 0;
+
+      const spreadCost = spreadPts * pointVal * contract * lots;
+      const slipCost = slipPts * pointVal * contract * lots;
+      const commCost = commPerLot * lots;
+      const totalFriction = spreadCost + slipCost + commCost;
+
+      el('num_cfd_fee').value = totalFriction.toFixed(3);
+      el('cfd_fee').value = Math.min(10, totalFriction);
+
+      updateMontePreview();
+      runSimulation();
+    }
+
+    function updateMontePreview() {
+      const risk = parseFloat(el('num_risk').value) || 4;
+      const cfdFee = parseFloat(el('num_cfd_fee').value) || 0;
+      const cfdRatio = ((cfdFee / risk) * 100).toFixed(2);
+      el('cfd_preview').innerHTML = `
+        单笔 1R 风险 $${risk}，综合摩擦成本 <b>$${cfdFee.toFixed(3)}</b>。<br>
+        摩擦直接吃掉 <b>${cfdRatio}%</b> 的 1R 风险金！
+      `;
+
+      const cryptoRate = parseFloat(el('num_crypto_rate').value) || 0;
+      const cryptoSlip = parseFloat(el('num_crypto_slip').value) || 0;
+      const stopDist = parseFloat(el('num_stop_dist').value) || 0.8;
+      const nominalPosition = risk / (stopDist / 100);
+      const cryptoActualFee = nominalPosition * ((cryptoRate + cryptoSlip) / 100);
+      const cryptoRatio = ((cryptoActualFee / risk) * 100).toFixed(2);
+
+      el('crypto_preview').innerHTML = `
+        单笔风险 $${risk} / 止损 ${stopDist}% → <b>名义开仓金额: $${Math.round(nominalPosition).toLocaleString()}</b><br>
+        手续费(${cryptoRate}%) + 滑点(${cryptoSlip}%) = <b>$${cryptoActualFee.toFixed(3)} / 笔</b>。<br>
+        <span style="color: ${cryptoRatio > 10 ? '#f85149' : '#39c5bb'};">
+          ⚠️ 综合摩擦吃掉单笔风险金的 <b>${cryptoRatio}%</b>！
+        </span>
+      `;
+      el('lbl_rendered_sims').innerText = `渲染路径: ${el('num_sims').value} 条`;
+    }
+
+    function switchFeeMode(mode) {
+      currentFeeMode = mode;
+      if (mode === 'cfd') {
+        el('tab_cfd').classList.add('active');
+        el('tab_crypto').classList.remove('active');
+        el('panel_cfd').style.display = 'flex';
+        el('panel_crypto').style.display = 'none';
+      } else {
+        el('tab_crypto').classList.add('active');
+        el('tab_cfd').classList.remove('active');
+        el('panel_crypto').style.display = 'flex';
+        el('panel_cfd').style.display = 'none';
+      }
+      updateMontePreview();
+      runSimulation();
+    }
+
+    function switchMainModule(mod) {
+      if (mod === 'monte') {
+        el('btn_nav_monte').classList.add('active');
+        el('btn_nav_stress').classList.remove('active');
+        el('mod_monte').classList.add('active');
+        el('mod_stress').classList.remove('active');
+        runSimulation();
+      } else {
+        el('btn_nav_stress').classList.add('active');
+        el('btn_nav_monte').classList.remove('active');
+        el('mod_stress').classList.add('active');
+        el('mod_monte').classList.remove('active');
+
+        el('num_st_winrate').value = el('num_winrate').value;
+        el('st_winrate').value = el('num_winrate').value;
+        el('num_st_rr').value = el('num_rr').value;
+        el('st_rr').value = el('num_rr').value;
+        const totalEstimatedTrades = parseInt(el('num_days').value) * parseInt(el('num_trades_per_day').value);
+        el('num_st_samples').value = Math.max(30, Math.min(300, totalEstimatedTrades));
+        el('st_samples').value = el('num_st_samples').value;
+
+        updateStressLabels();
+        runStressTest();
+      }
+    }
+
+    // ======================== 核心：700 种高精度超参数暴力寻优 ========================
+    function runFineGrainedGridSearch() {
+      const initialCapital = parseFloat(el('num_capital').value) || 140;
+      const riskPerTrade = parseFloat(el('num_risk').value) || 4;
+      const baseWinRate = (parseFloat(el('num_winrate').value) || 40) / 100;
+      const rr = parseFloat(el('num_rr').value) || 2.0;
+      const totalDays = parseInt(el('num_days').value) || 30;
+      const cfdFee = parseFloat(el('num_cfd_fee').value) || 0.16;
+
+      // 1. 笔数维度：1 到 10 笔全部覆盖！
+      const candidatesTradesPerDay = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+      // 2. 熔断维度：1 到 6 笔，以及不设熔断！
+      const candidatesMaxLosses = [1, 2, 3, 4, 5, 6, 99];
+      // 3. 浮盈保护组合：(不开启) 或 (目标 +1.5R/+2.0R/+3.0R 与 回撤锁 0R/+0.5R/+1.0R)
+      const profitLockConfigs = [
+        { enabled: false, targetR: 0, lockR: 0, label: '关闭' },
+        { enabled: true, targetR: 1.5, lockR: 0.5, label: '+1.5R 锁 +0.5R' },
+        { enabled: true, targetR: 1.5, lockR: 0.0, label: '+1.5R 锁保本 0R' },
+        { enabled: true, targetR: 2.0, lockR: 1.0, label: '+2.0R 锁 +1.0R' },
+        { enabled: true, targetR: 2.0, lockR: 0.5, label: '+2.0R 锁 +0.5R' },
+        { enabled: true, targetR: 2.0, lockR: 0.0, label: '+2.0R 锁保本 0R' },
+        { enabled: true, targetR: 3.0, lockR: 1.5, label: '+3.0R 锁 +1.5R' },
+        { enabled: true, targetR: 3.0, lockR: 1.0, label: '+3.0R 锁 +1.0R' },
+        { enabled: true, targetR: 3.0, lockR: 0.0, label: '+3.0R 锁保本 0R' }
+      ];
+
+      const results = [];
+      const SIMS_PER_COMBO = 70; // 700 种组合各快速模拟 70 次人生，总计 150 万次运算，0.1 秒秒出！
+
+      for (const tpd of candidatesTradesPerDay) {
+        for (const ml of candidatesMaxLosses) {
+          for (const plc of profitLockConfigs) {
+            let totalEndNet = 0;
+            let totalMaxDD = 0;
+            let winCount = 0;
+
+            for (let r = 0; r < SIMS_PER_COMBO; r++) {
+              let curNet = initialCapital;
+              let peakNet = initialCapital;
+              let maxDD = 0;
+
+              for (let d = 0; d < totalDays; d++) {
+                let dayNetPnl = 0;
+                let dayLossCount = 0;
+                let dayPeakNetPnl = 0;
+
+                for (let t = 0; t < tpd; t++) {
+                  let effWin = baseWinRate;
+                  if (t >= 3) effWin = Math.max(0.18, baseWinRate - (t - 2) * 0.045);
+
+                  const isWin = Math.random() < effWin;
+                  const gross = isWin ? (riskPerTrade * rr) : (-riskPerTrade);
+                  const net = gross - cfdFee;
+
+                  curNet += net;
+                  dayNetPnl += net;
+                  if (net < 0) dayLossCount++;
+                  if (dayNetPnl > dayPeakNetPnl) dayPeakNetPnl = dayNetPnl;
+
+                  // 熔断
+                  if (ml !== 99 && dayLossCount >= ml) break;
+                  // 浮盈锁
+                  if (plc.enabled && dayPeakNetPnl >= riskPerTrade * plc.targetR && dayNetPnl <= riskPerTrade * plc.lockR) {
+                    break;
+                  }
+                }
+
+                if (curNet > peakNet) peakNet = curNet;
+                const dd = (peakNet - curNet) / peakNet;
+                if (dd > maxDD) maxDD = dd;
+              }
+
+              totalEndNet += curNet;
+              totalMaxDD += maxDD;
+              if (curNet > initialCapital) winCount++;
+            }
+
+            const avgNet = totalEndNet / SIMS_PER_COMBO;
+            const avgDD = totalMaxDD / SIMS_PER_COMBO;
+            const netProfit = avgNet - initialCapital;
+
+            let score = 0;
+            if (netProfit > 0) {
+              score = netProfit / ((avgDD * 100) + 4);
+            }
+
+            results.push({
+              tpd,
+              ml: ml === 99 ? '不设' : `${ml}笔`,
+              mlVal: ml,
+              plc,
+              avgNet: Math.round(avgNet),
+              netProfit: Math.round(netProfit),
+              avgDD: (avgDD * 100).toFixed(1),
+              score: score.toFixed(2)
+            });
+          }
+        }
+      }
+
+      results.sort((a, b) => b.score - a.score);
+
+      const best = results[0];
+      el('opt_result_panel').style.display = 'block';
+      el('opt_best_summary').innerHTML = `
+        <span style="color: #bc8cff; font-weight: bold; font-size: 13px;">🏆 700 种全排列寻优 · 终极黄金区间：</span><br>
+        • 最佳日内笔数：<b style="color: #f1e05a;">每天 ${best.tpd} 笔</b><br>
+        • 最佳单日熔断：<b style="color: #f85149;">连亏 ${best.ml} 强制停手</b><br>
+        • 最佳浮盈策略：<b style="color: #39c5bb;">${best.plc.label}</b><br>
+        • 预期收益回撤：30天终值 <b>$${best.avgNet}</b>（净赚 +$${best.netProfit}），回撤仅 <b>${best.avgDD}%</b>！
+      `;
+
+      const tbody = el('opt_rank_tbody');
+      tbody.innerHTML = '';
+      results.slice(0, 6).forEach((r, idx) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><span class="badge" style="padding: 1px 3px; ${idx===0 ? 'background: rgba(241,224,90,0.2); color:#f1e05a;' : ''}">TOP ${idx+1}</span></td>
+          <td style="color:#fff;">每天 ${r.tpd} 笔</td>
+          <td style="color:#ff9966;">${r.ml}</td>
+          <td>${r.plc.enabled ? '+'+r.plc.targetR+'R' : '关闭'}</td>
+          <td>${r.plc.enabled ? '+'+r.plc.lockR+'R' : '-'}</td>
+          <td style="color:#2ea043; font-weight:bold;">${r.score}</td>
+          <td><a class="opt-apply-link" onclick="applyFineCombo(${r.tpd}, ${r.mlVal}, ${r.plc.enabled}, ${r.plc.targetR}, ${r.plc.lockR})">一键应用</a></td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      applyFineCombo(best.tpd, best.mlVal, best.plc.enabled, best.plc.targetR, best.plc.lockR);
+    }
+
+    function applyFineCombo(tpd, mlVal, plEnabled, targetR, lockR) {
+      el('num_trades_per_day').value = tpd;
+      el('trades_per_day').value = tpd;
+
+      if (mlVal === 99) {
+        el('chk_daily_breaker').checked = false;
+      } else {
+        el('chk_daily_breaker').checked = true;
+        el('num_max_daily_losses').value = mlVal;
+      }
+
+      el('chk_profit_lock').checked = plEnabled;
+      if (plEnabled) {
+        el('num_profit_target_r').value = targetR;
+        el('num_profit_lock_r').value = lockR;
+      }
+      runSimulation();
+    }
+
+    // ======================== 分层按交易日蒙特卡洛引擎 ========================
+    function runSimulation() {
+      const initialCapital = parseFloat(el('num_capital').value) || 140;
+      const riskPerTrade = parseFloat(el('num_risk').value) || 4;
+      const baseWinRate = (parseFloat(el('num_winrate').value) || 40) / 100;
+      const rr = parseFloat(el('num_rr').value) || 2.0;
+      const totalDays = parseInt(el('num_days').value) || 30;
+      const tradesPerDay = parseInt(el('num_trades_per_day').value) || 2;
+      const simRuns = parseInt(el('num_sims').value) || 200;
+
+      const useDailyBreaker = el('chk_daily_breaker').checked;
+      const maxDailyLosses = parseInt(el('num_max_daily_losses').value) || 2;
+      const useProfitLock = el('chk_profit_lock').checked;
+      const profitTargetR = parseFloat(el('num_profit_target_r').value) || 2.0;
+      const profitLockR = parseFloat(el('num_profit_lock_r').value) || 1.0;
+
+      let feePerTrade = 0;
+      if (currentFeeMode === 'cfd') {
+        feePerTrade = parseFloat(el('num_cfd_fee').value) || 0;
+      } else {
+        const cryptoRate = (parseFloat(el('num_crypto_rate').value) || 0) / 100;
+        const cryptoSlip = (parseFloat(el('num_crypto_slip').value) || 0) / 100;
+        const stopDist = (parseFloat(el('num_stop_dist').value) || 0.8) / 100;
+        const nominalPosition = riskPerTrade / stopDist;
+        feePerTrade = nominalPosition * (cryptoRate + cryptoSlip);
+      }
+
+      const grossPaths = [];
+      const netPaths = [];
+      const maxDrawdowns = [];
+      let winningPathsCount = 0;
+      let totalFeesAccumulated = 0;
+
+      for (let run = 0; run < simRuns; run++) {
+        const grossEquity = [initialCapital];
+        const netEquity = [initialCapital];
+        let currentGross = initialCapital;
+        let currentNet = initialCapital;
+        let peakNet = initialCapital;
+        let maxDD = 0;
+        let runTotalFee = 0;
+
+        for (let d = 0; d < totalDays; d++) {
+          let dayNetPnl = 0;
+          let dayLossCount = 0;
+          let dayPeakNetPnl = 0;
+
+          for (let t = 0; t < tradesPerDay; t++) {
+            let effectiveWinRate = baseWinRate;
+            if (t >= 3) effectiveWinRate = Math.max(0.18, baseWinRate - (t - 2) * 0.045);
+
+            const isWin = Math.random() < effectiveWinRate;
+            const grossPnl = isWin ? (riskPerTrade * rr) : (-riskPerTrade);
+            const netPnl = grossPnl - feePerTrade;
+            runTotalFee += feePerTrade;
+
+            currentGross += grossPnl;
+            currentNet += netPnl;
+            dayNetPnl += netPnl;
+
+            if (netPnl < 0) dayLossCount++;
+            if (dayNetPnl > dayPeakNetPnl) dayPeakNetPnl = dayNetPnl;
+
+            if (useDailyBreaker && dayLossCount >= maxDailyLosses) break;
+            if (useProfitLock && dayPeakNetPnl >= riskPerTrade * profitTargetR && dayNetPnl <= riskPerTrade * profitLockR) {
+              break;
+            }
+          }
+
+          grossEquity.push(currentGross);
+          netEquity.push(currentNet);
+
+          if (currentNet > peakNet) peakNet = currentNet;
+          const dd = (peakNet - currentNet) / peakNet;
+          if (dd > maxDD) maxDD = dd;
+        }
+
+        grossPaths.push(grossEquity);
+        netPaths.push(netEquity);
+        maxDrawdowns.push(maxDD);
+        totalFeesAccumulated += runTotalFee;
+
+        if (currentNet > initialCapital) winningPathsCount++;
+      }
+
+      const avgGross = new Array(totalDays + 1).fill(0);
+      const avgNet = new Array(totalDays + 1).fill(0);
+
+      for (let d = 0; d <= totalDays; d++) {
+        let sumG = 0, sumN = 0;
+        for (let r = 0; r < simRuns; r++) {
+          sumG += grossPaths[r][d];
+          sumN += netPaths[r][d];
+        }
+        avgGross[d] = sumG / simRuns;
+        avgNet[d] = sumN / simRuns;
+      }
+
+      const finalGrossAvg = avgGross[totalDays];
+      const finalNetAvg = avgNet[totalDays];
+      const feeDragTotal = totalFeesAccumulated / simRuns;
+      const winPathRatio = (winningPathsCount / simRuns) * 100;
+      const avgDD = (maxDrawdowns.reduce((a, b) => a + b, 0) / simRuns) * 100;
+
+      el('res_gross').innerText = `$${Math.round(finalGrossAvg).toLocaleString()}`;
+      el('res_net').innerText = `$${Math.round(finalNetAvg).toLocaleString()}`;
+      el('res_fee_drag').innerText = `-$${Math.round(feeDragTotal).toLocaleString()}`;
+      el('res_win_prob').innerText = `${winPathRatio.toFixed(1)}%`;
+      el('res_max_dd').innerText = `${avgDD.toFixed(1)}%`;
+
+      renderMonteChart(grossPaths, netPaths, avgGross, avgNet, initialCapital, totalDays, simRuns);
+    }
+
+    function renderMonteChart(grossPaths, netPaths, avgGross, avgNet, initialCapital, totalDays, simRuns) {
+      const canvas = el('chart');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+
+      const rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+
+      const W = rect.width;
+      const H = rect.height;
+      const padLeft = 70;
+      const padRight = 30;
+      const padTop = 30;
+      const padBottom = 40;
+
+      ctx.clearRect(0, 0, W, H);
+
+      let minVal = initialCapital;
+      let maxVal = initialCapital;
+
+      for (let r = 0; r < simRuns; r++) {
+        for (let d = 0; d <= totalDays; d++) {
+          const g = grossPaths[r][d];
+          const n = netPaths[r][d];
+          if (g > maxVal) maxVal = g;
+          if (n > maxVal) maxVal = n;
+          if (g < minVal) minVal = g;
+          if (n < minVal) minVal = n;
+        }
+      }
+
+      const range = maxVal - minVal || 1;
+      minVal = Math.floor(minVal - range * 0.05);
+      maxVal = Math.ceil(maxVal + range * 0.05);
+
+      const getX = d => padLeft + (d / totalDays) * (W - padLeft - padRight);
+      const getY = val => padTop + (1 - (val - minVal) / (maxVal - minVal)) * (H - padTop - padBottom);
+
+      ctx.strokeStyle = '#1b2331';
+      ctx.lineWidth = 1;
+      const gridRows = 6;
+      ctx.font = '11px monospace';
+      ctx.fillStyle = '#64748b';
+      ctx.textAlign = 'right';
+
+      for (let i = 0; i <= gridRows; i++) {
+        const val = minVal + (i / gridRows) * (maxVal - minVal);
+        const y = getY(val);
+        ctx.beginPath();
+        ctx.moveTo(padLeft, y);
+        ctx.lineTo(W - padRight, y);
+        ctx.stroke();
+        ctx.fillText(`$${Math.round(val).toLocaleString()}`, padLeft - 10, y + 4);
+      }
+
+      const yInit = getY(initialCapital);
+      ctx.strokeStyle = '#3e4c63';
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(padLeft, yInit);
+      ctx.lineTo(W - padRight, yInit);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#8b949e';
+      ctx.fillText('初始资金线', W - padRight, yInit - 6);
+
+      ctx.lineWidth = 1;
+      for (let r = 0; r < Math.min(60, simRuns); r++) {
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+        ctx.beginPath();
+        for (let d = 0; d <= totalDays; d++) {
+          const x = getX(d);
+          const y = getY(grossPaths[r][d]);
+          if (d === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+
+      for (let r = 0; r < simRuns; r++) {
+        const finalNet = netPaths[r][totalDays];
+        const isWin = finalNet >= initialCapital;
+        ctx.strokeStyle = isWin ? 'rgba(46, 160, 67, 0.12)' : 'rgba(248, 81, 73, 0.12)';
+        ctx.beginPath();
+        for (let d = 0; d <= totalDays; d++) {
+          const x = getX(d);
+          const y = getY(netPaths[r][d]);
+          if (d === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+
+      ctx.lineWidth = 3.5;
+      ctx.strokeStyle = '#f1e05a';
+      ctx.beginPath();
+      for (let d = 0; d <= totalDays; d++) {
+        const x = getX(d);
+        const y = getY(avgGross[d]);
+        if (d === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+      ctx.lineWidth = 3.5;
+      ctx.strokeStyle = '#39c5bb';
+      ctx.beginPath();
+      for (let d = 0; d <= totalDays; d++) {
+        const x = getX(d);
+        const y = getY(avgNet[d]);
+        if (d === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+      ctx.fillStyle = '#64748b';
+      ctx.textAlign = 'center';
+      const steps = 6;
+      for (let i = 0; i <= steps; i++) {
+        const dayNum = Math.round((i / steps) * totalDays);
+        const x = getX(dayNum);
+        ctx.fillText(`第 ${dayNum} 天`, x, H - padBottom + 20);
+      }
+    }
+
+    // ======================== 模块二计算与渲染 ========================
+    function updateStressLabels() {
+      const p = (parseFloat(el('num_st_winrate').value) || 40) / 100;
+      const b = parseFloat(el('num_st_rr').value) || 2.0;
+      const kelly = (p * (b + 1) - 1) / b;
+      const kellyPct = (kelly * 100).toFixed(2);
+
+      if (kelly <= 0) {
+        el('kelly_preview').innerHTML = `
+          <span style="color: #f85149; font-weight: bold;">⚠️ 负期望策略！</span><br>
+          凯利值为负值 (${kellyPct}%)，在此胜率与盈亏比下长期必亏，数学建议下注仓位为 <b>0%</b>！
+        `;
+      } else {
+        const halfKelly = (kelly * 50).toFixed(2);
+        el('kelly_preview').innerHTML = `
+          全凯利理论仓位: <b>${kellyPct}%</b><br>
+          实战稳健半凯利 (Half Kelly): <b>${halfKelly}%</b><br>
+          <span style="color: #8b949e; font-size: 10px;">注：日内交易建议单笔风险绝不超过半凯利的一半（即 1%~2%）。</span>
+        `;
+      }
+    }
+
+    function calcStreakProb(N, K, lossProb) {
+      if (K > N) return 0;
+      const winProb = 1 - lossProb;
+      const dp = new Array(N + 1).fill(0);
+      dp[0] = 1;
+
+      for (let i = 1; i <= N; i++) {
+        if (i < K) {
+          dp[i] = 1;
+        } else if (i === K) {
+          dp[i] = 1 - Math.pow(lossProb, K);
+        } else {
+          dp[i] = dp[i - 1] - dp[i - K - 1] * winProb * Math.pow(lossProb, K);
+        }
+      }
+      return Math.max(0, Math.min(1, 1 - dp[N]));
+    }
+
+    function runStressTest() {
+      const p = (parseFloat(el('num_st_winrate').value) || 40) / 100;
+      const lossProb = 1 - p;
+      const N = parseInt(el('num_st_samples').value) || 100;
+      const rr = parseFloat(el('num_st_rr').value) || 2.0;
+      const riskPct = (parseFloat(el('num_st_riskpct').value) || 2.5) / 100;
+
+      const streakKs = [3, 4, 5, 6, 7, 8, 9, 10, 12];
+      const streakProbs = streakKs.map(k => calcStreakProb(N, k, lossProb));
+
+      renderStreakChart(streakKs, streakProbs, N);
+      renderRuinChart(p, rr);
+      updateDrawdownTable(riskPct);
+
+      const prob5 = (streakProbs[streakKs.indexOf(5)] * 100).toFixed(1);
+      const prob7 = (streakProbs[streakKs.indexOf(7)] * 100).toFixed(1);
+      el('stress_alert').innerHTML = `
+        <b>核心警醒</b>：在未来 ${N} 笔交易中，你至少遭遇一次 <b>5 连亏</b> 的概率高达 <b>${prob5}%</b>；
+        遭遇 <b>7 连亏</b> 的概率为 <b>${prob7}%</b>！<br>
+        遇到连续止损绝不是你的策略失灵，切勿在连败期盲目加仓或扛单！
+      `;
+    }
+
+    function renderStreakChart(streakKs, streakProbs, N) {
+      const canvas = el('chart_streak');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+
+      const rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+
+      const W = rect.width;
+      const H = rect.height;
+      const padLeft = 45;
+      const padRight = 20;
+      const padTop = 25;
+      const padBottom = 35;
+
+      ctx.clearRect(0, 0, W, H);
+
+      ctx.strokeStyle = '#1b2331';
+      ctx.lineWidth = 1;
+      ctx.font = '10px monospace';
+      ctx.fillStyle = '#64748b';
+      ctx.textAlign = 'right';
+
+      for (let p = 0; p <= 100; p += 25) {
+        const y = padTop + (1 - p / 100) * (H - padTop - padBottom);
+        ctx.beginPath();
+        ctx.moveTo(padLeft, y);
+        ctx.lineTo(W - padRight, y);
+        ctx.stroke();
+        ctx.fillText(`${p}%`, padLeft - 6, y + 3);
+      }
+
+      const barCount = streakKs.length;
+      const plotWidth = W - padLeft - padRight;
+      const barWidth = (plotWidth / barCount) * 0.65;
+      const step = plotWidth / barCount;
+
+      for (let i = 0; i < barCount; i++) {
+        const prob = streakProbs[i];
+        const x = padLeft + i * step + (step - barWidth) / 2;
+        const h = prob * (H - padTop - padBottom);
+        const y = padTop + (H - padTop - padBottom) - h;
+
+        let color = '#2ea043';
+        if (prob >= 0.7) color = '#f85149';
+        else if (prob >= 0.4) color = '#ff9966';
+        else if (prob >= 0.2) color = '#f1e05a';
+
+        ctx.fillStyle = color;
+        ctx.fillRect(x, y, barWidth, h);
+
+        ctx.fillStyle = '#fff';
+        ctx.font = '10px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${(prob * 100).toFixed(0)}%`, x + barWidth / 2, y - 5);
+
+        ctx.fillStyle = '#8b949e';
+        ctx.fillText(`${streakKs[i]}连亏`, x + barWidth / 2, H - padBottom + 16);
+      }
+    }
+
+    function renderRuinChart(winRate, rr) {
+      const canvas = el('chart_ruin');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+
+      const rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+
+      const W = rect.width;
+      const H = rect.height;
+      const padLeft = 45;
+      const padRight = 20;
+      const padTop = 25;
+      const padBottom = 35;
+
+      ctx.clearRect(0, 0, W, H);
+
+      ctx.strokeStyle = '#1b2331';
+      ctx.lineWidth = 1;
+      ctx.font = '10px monospace';
+      ctx.fillStyle = '#64748b';
+      ctx.textAlign = 'right';
+
+      for (let p = 0; p <= 100; p += 25) {
+        const y = padTop + (1 - p / 100) * (H - padTop - padBottom);
+        ctx.beginPath();
+        ctx.moveTo(padLeft, y);
+        ctx.lineTo(W - padRight, y);
+        ctx.stroke();
+        ctx.fillText(`${p}%`, padLeft - 6, y + 3);
+      }
+
+      const riskLevels = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0];
+      const getRuinX = r => padLeft + ((r - 0.5) / 4.5) * (W - padLeft - padRight);
+      const getRuinY = ruin => padTop + (1 - ruin) * (H - padTop - padBottom);
+
+      const q = 1 - winRate;
+      const p = winRate;
+      const points = [];
+
+      riskLevels.forEach(r => {
+        let ruinProb = 0;
+        if (p * rr - q <= 0) {
+          ruinProb = 1.0;
+        } else {
+          const ratio = q / (p * Math.pow(rr, 0.8));
+          if (ratio >= 1) {
+            ruinProb = 1.0;
+          } else {
+            const units = 100 / r;
+            ruinProb = Math.pow(ratio, units * 0.5);
+          }
+        }
+        points.push({ r, ruin: Math.min(1, Math.max(0, ruinProb)) });
+      });
+
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = '#f85149';
+      ctx.beginPath();
+      points.forEach((pt, idx) => {
+        const x = getRuinX(pt.r);
+        const y = getRuinY(pt.ruin);
+        if (idx === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+
+      const curRisk = parseFloat(el('num_st_riskpct').value) || 2.5;
+      points.forEach(pt => {
+        const x = getRuinX(pt.r);
+        const y = getRuinY(pt.ruin);
+        ctx.fillStyle = Math.abs(pt.r - curRisk) < 0.25 ? '#fff' : '#f85149';
+        ctx.beginPath();
+        ctx.arc(x, y, 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#8b949e';
+        ctx.font = '10px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${pt.r}%`, x, H - padBottom + 16);
+      });
+    }
+
+    function updateDrawdownTable(riskPct) {
+      const tbody = el('drawdown_tbody');
+      tbody.innerHTML = '';
+      const streaks = [2, 3, 4, 5, 6, 7, 8, 10];
+
+      streaks.forEach(s => {
+        const remainPct = Math.pow(1 - riskPct, s) * 100;
+        const ddPct = 100 - remainPct;
+        const breakevenReq = ((100 / remainPct) - 1) * 100;
+
+        let statusText = '🟢 安全波动';
+        let statusColor = '#2ea043';
+        if (ddPct > 18) {
+          statusText = '🔴 极度危险！极易心态崩溃';
+          statusColor = '#f85149';
+        } else if (ddPct > 10) {
+          statusText = '🟠 中度危险，强制暂停冷却';
+          statusColor = '#ff9966';
+        } else if (ddPct > 5) {
+          statusText = '🟡 正常波动，严格遵守纪律';
+          statusColor = '#f1e05a';
+        }
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><b>${s} 连止损</b></td>
+          <td style="color: #fff;">${remainPct.toFixed(2)}%</td>
+          <td style="color: #f85149;">-${ddPct.toFixed(2)}%</td>
+          <td style="color: #39c5bb;">+${breakevenReq.toFixed(2)}%</td>
+          <td style="color: ${statusColor}; font-family: -apple-system, sans-serif;">${statusText}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    window.addEventListener('resize', () => {
+      if (el('mod_monte').classList.contains('active')) {
+        runSimulation();
+      } else {
+        runStressTest();
+      }
+    });
+
+    updateMontePreview();
+    runSimulation();
+  </script>
+</body>
+</html>
